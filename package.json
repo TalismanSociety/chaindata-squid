@@ -10,7 +10,7 @@
     "processor:migrate": "echo skip",
     "processor:start": "node -r dotenv/config lib/processor.js",
     "query-node:start": "squid-graphql-server",
-    "release": "sqd squid release Chaindata@0.0.1"
+    "release": "sqd squid release Chaindata@latest"
   },
   "dependencies": {
     "@subsquid/cli": "^0.1.2",
