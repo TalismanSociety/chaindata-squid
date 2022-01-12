@@ -3,12 +3,14 @@
   "private": true,
   "scripts": {
     "build": "rm -rf lib && tsc",
-    "init": "node db/init.js",
+    "init": "node -r dotenv/config db/init.js",
     "db:migrate": "npx sqd db migrate",
+    "db:create-migration": "sqd db create-migration",
     "schema:reset": "",
     "processor:migrate": "echo skip",
-    "processor:start": "node lib/processor.js",
-    "query-node:start": "squid-graphql-server"
+    "processor:start": "node -r dotenv/config lib/processor.js",
+    "query-node:start": "squid-graphql-server",
+    "release": "sqd squid release Chaindata@0.0.1"
   },
   "dependencies": {
     "@subsquid/cli": "^0.1.2",
@@ -24,5 +26,17 @@
     "@subsquid/substrate-typegen": "^0.2.1",
     "@types/node": "^16.11.17",
     "typescript": "~4.5.4"
+  },
+  "prettier": {
+    "semi": false,
+    "singleQuote": true,
+    "overrides": [
+      {
+        "files": "processor.ts",
+        "options": {
+          "tabWidth": 4
+        }
+      }
+    ]
   }
 }
