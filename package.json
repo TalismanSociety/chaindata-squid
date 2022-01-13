@@ -3,14 +3,14 @@
   "private": true,
   "scripts": {
     "build": "rm -rf lib && tsc",
-    "init": "node -r dotenv/config db/init.js",
+    "init": "node db/init.js",
     "db:migrate": "npx sqd db migrate",
     "db:create-migration": "sqd db create-migration",
     "schema:reset": "",
     "processor:migrate": "echo skip",
-    "processor:start": "node -r dotenv/config lib/processor.js",
+    "processor:start": "node lib/processor.js",
     "query-node:start": "squid-graphql-server",
-    "release": "sqd squid release Chaindata@latest"
+    "release": "sqd squid release chaindata@latest"
   },
   "dependencies": {
     "@subsquid/cli": "^0.1.2",
