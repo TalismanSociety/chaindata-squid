@@ -12,7 +12,8 @@
     "processor:dev-start": "npm run build && node -r dotenv/config lib/processor.js",
     "processor:start": "node lib/processor.js",
     "query-node:start": "squid-graphql-server",
-    "release": "sqd squid release chaindata@`git rev-parse --short HEAD`"
+    "release": "sqd squid release chaindata@`git rev-parse --short HEAD`",
+    "release:latest": "sqd squid kill chaindata@latest && sqd squid release chaindata@latest"
   },
   "dependencies": {
     "@subsquid/cli": "^0.1.2",
