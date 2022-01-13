@@ -5,7 +5,7 @@
     "codegen": "sqd codegen",
     "build": "rm -rf lib && tsc",
     "init": "node db/init.js",
-    "db:create-migration": "sqd db create-migration",
+    "db:create-migration": "npm run build && sqd db create-migration",
     "db:migrate": "npx sqd db migrate",
     "schema:reset": "",
     "processor:migrate": "echo skip",

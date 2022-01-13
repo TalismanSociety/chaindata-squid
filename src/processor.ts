@@ -12,7 +12,7 @@ const processor = new SubstrateProcessor('chaindata')
 
 processor.setTypesBundle('kusama')
 processor.setBatchSize(500)
-processor.setBlockRange({ from: 10_840_000 })
+processor.setBlockRange({ from: 10_940_000 })
 
 processor.setDataSource({
     archive: 'https://kusama.indexer.gc.subsquid.io/v4/graphql',
@@ -28,9 +28,7 @@ processor.addPostHook(async ({ block, store }) => {
     // only run every 10 blocks
     if (blockHeight % 10 !== 0) return
 
-    // console.debug(
-    //     `block ${blockHeight} timestamp ${block.timestamp}: 10th block!`
-    // )
+    // console.debug(`block ${blockHeight} timestamp ${block.timestamp}: 10th block!`)
 
     // ignore if block timestamp is greater than 60 seconds ago
     if (Date.now() - blockTimestamp > 60_000) return
@@ -57,7 +55,7 @@ processor.addPostHook(async ({ block, store }) => {
         req.end()
     })
 
-    console.debug('received data', data)
+    // console.debug('received data', data)
     const json = JSON.parse(data)
 
     for (const chaindata of json) {
@@ -80,8 +78,11 @@ processor.addPostHook(async ({ block, store }) => {
         await store.save(chain)
     }
 
-    console.log('saved data')
+    console.debug('updated chaindata')
 })
+
+// indexer breaks if we don't subscribe to at least one type of event in addition to the postBlock hook
+processor.addEventHandler('balances.Transfer', async () => {})
 
 processor.run()
 
