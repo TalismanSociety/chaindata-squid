@@ -10,7 +10,7 @@
     "processor:migrate": "echo skip",
     "processor:start": "node lib/processor.js",
     "query-node:start": "squid-graphql-server",
-    "release": "sqd squid release chaindata@latest"
+    "release": "sqd squid release chaindata@`git rev-parse --short HEAD`"
   },
   "dependencies": {
     "@subsquid/cli": "^0.1.2",
