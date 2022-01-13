@@ -4,53 +4,83 @@ import {
     Store,
     SubstrateProcessor,
 } from '@subsquid/substrate-processor'
-import { Account, HistoricalBalance } from './model'
+import { Chain } from './model'
 import { BalancesTransferEvent } from './types/events'
+import https from 'https'
 
-const processor = new SubstrateProcessor('kusama_balances')
+const processor = new SubstrateProcessor('chaindata')
 
 processor.setTypesBundle('kusama')
 processor.setBatchSize(500)
+processor.setBlockRange({ from: 10_940_000 })
 
 processor.setDataSource({
     archive: 'https://kusama.indexer.gc.subsquid.io/v4/graphql',
     chain: 'wss://kusama-rpc.polkadot.io',
 })
 
-processor.addEventHandler('balances.Transfer', async (ctx) => {
-    let transfer = getTransferEvent(ctx)
-    let tip = ctx.extrinsic?.tip || 0n
-    let from = ss58.codec('kusama').encode(transfer.from)
-    let to = ss58.codec('kusama').encode(transfer.to)
+processor.addPostHook(async ({ block, store }) => {
+    const blockHeight = block.height
+    const blockTimestamp = block.timestamp
 
-    let fromAcc = await getOrCreate(ctx.store, Account, from)
-    fromAcc.balance = fromAcc.balance || 0n
-    fromAcc.balance -= transfer.amount
-    fromAcc.balance -= tip
-    await ctx.store.save(fromAcc)
+    // console.debug(`block ${blockHeight} timestamp ${block.timestamp}`)
 
-    const toAcc = await getOrCreate(ctx.store, Account, to)
-    toAcc.balance = toAcc.balance || 0n
-    toAcc.balance += transfer.amount
-    await ctx.store.save(toAcc)
+    // only run every 10 blocks
+    if (blockHeight % 10 !== 0) return
 
-    await ctx.store.save(
-        new HistoricalBalance({
-            id: ctx.event.id + '-to',
-            account: fromAcc,
-            balance: fromAcc.balance,
-            date: new Date(ctx.block.timestamp),
-        })
+    // console.debug(
+    //     `block ${blockHeight} timestamp ${block.timestamp}: 10th block!`
+    // )
+
+    // ignore if block timestamp is greater than 60 seconds ago
+    if (Date.now() - blockTimestamp > 60_000) return
+
+    console.debug(
+        `block ${blockHeight} timestamp ${block.timestamp}: 10th block and recent!`
     )
 
-    await ctx.store.save(
-        new HistoricalBalance({
-            id: ctx.event.id + '-from',
-            account: toAcc,
-            balance: toAcc.balance,
-            date: new Date(ctx.block.timestamp),
-        })
-    )
+    const data: string = await new Promise((resolve, reject) => {
+        const req = https.request(
+            {
+                hostname: 'raw.githubusercontent.com',
+                port: 443,
+                path: '/TalismanSociety/chaindata/graphql-chaindata-imitator/chaindata.json',
+                method: 'GET',
+            },
+            (res) => {
+                let data: string[] = []
+                res.on('data', (d) => data.push(d))
+                res.on('close', () => resolve(data.join('')))
+            }
+        )
+        req.on('error', reject)
+        req.end()
+    })
+
+    console.debug('received data', data)
+    const json = JSON.parse(data)
+
+    for (const chaindata of json) {
+        let chain = await getOrCreate(store, Chain, chaindata.id)
+        let relay = chaindata.relay?.id
+            ? await getOrCreate(store, Chain, chaindata.relay.id)
+            : null
+
+        if (chaindata.relay?.paraId) chain.paraId = chaindata.relay?.paraId
+        // chain.genesisHash =
+        chain.prefix = chaindata.prefix
+        chain.name = chaindata.name
+        chain.token = chaindata.token
+        chain.decimals = chaindata.decimals
+        chain.existentialDeposit = chaindata.existentialDeposit
+        chain.account = chaindata.account
+        chain.rpcs = chaindata.rpcs
+        chain.relay = relay
+
+        await store.save(chain)
+    }
+
+    console.log('saved data')
 })
 
 processor.run()

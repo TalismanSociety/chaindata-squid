@@ -1,13 +1,15 @@
-type Account @entity {
-  "Account address"
+type Chain @entity {
+  "Network identifier"
   id: ID!
-  balance: BigInt!
-  historicalBalances: [HistoricalBalance!] @derivedFrom(field: "account")
-}
-
-type HistoricalBalance @entity {
-  id: ID!
-  account: Account!
-  balance: BigInt!
-  date: DateTime!
+  paraId: Int
+  genesisHash: String
+  prefix: Int
+  name: String
+  token: String
+  decimals: Int
+  existentialDeposit: String
+  account: String
+  rpcs: [String!]!
+  parathreads: [Chain!] @derivedFrom(field: "relay")
+  relay: Chain
 }
