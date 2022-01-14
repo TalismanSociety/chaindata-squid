@@ -9,6 +9,7 @@ type Chain @entity {
   existentialDeposit: String
   account: String
   rpcs: [String!]!
+  isHealthy: Boolean!
   parathreads: [Chain!] @derivedFrom(field: "relay") # if relaychain
   paraId: Int # if parachain
   relay: Chain # if parachain

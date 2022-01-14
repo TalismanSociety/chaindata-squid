@@ -36,6 +36,9 @@ export class Chain {
   @Column_("text", {array: true, nullable: false})
   rpcs!: (string)[]
 
+  @Column_("bool", {nullable: false})
+  isHealthy!: boolean
+
   @OneToMany_(() => Chain, e => e.relay)
   parathreads!: Chain[]
 

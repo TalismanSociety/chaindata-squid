@@ -1,18 +1,18 @@
-import * as ss58 from '@subsquid/ss58'
+import https from 'https'
 import {
     EventHandlerContext,
     Store,
     SubstrateProcessor,
 } from '@subsquid/substrate-processor'
+import { WsProvider } from '@polkadot/api'
 import { Chain } from './model'
 import { BalancesTransferEvent } from './types/events'
-import https from 'https'
 
 const processor = new SubstrateProcessor('chaindata')
 
 processor.setTypesBundle('kusama')
 processor.setBatchSize(500)
-processor.setBlockRange({ from: 10_940_000 })
+processor.setBlockRange({ from: 10_950_000 })
 
 processor.setDataSource({
     archive: 'https://kusama.indexer.gc.subsquid.io/v4/graphql',
@@ -25,16 +25,17 @@ processor.addPostHook(async ({ block, store }) => {
 
     // console.debug(`block ${blockHeight} timestamp ${block.timestamp}`)
 
-    // only run every 10 blocks
-    if (blockHeight % 10 !== 0) return
+    // only run every 50 blocks ≈ 5 minutes at 6s / block
+    if (blockHeight % 50 !== 0) return
 
     // console.debug(`block ${blockHeight} timestamp ${block.timestamp}: 10th block!`)
 
-    // ignore if block timestamp is greater than 60 seconds ago
-    if (Date.now() - blockTimestamp > 60_000) return
+    // ignore if block timestamp is greater than 300 seconds ago (5 minutes)
+    if (Date.now() - blockTimestamp > 300_000) return
 
     console.debug(
-        `block ${blockHeight} timestamp ${block.timestamp}: 10th block and recent!`
+        `block ${blockHeight} timestamp ${block.timestamp}: 50th block and recent!`,
+        Math.trunc(Date.now() / 1000)
     )
 
     const data: string = await new Promise((resolve, reject) => {
@@ -79,6 +80,92 @@ processor.addPostHook(async ({ block, store }) => {
     }
 
     console.debug('updated chaindata')
+
+    const setUnhealthy = (chain: Chain): Chain | null => {
+        if (!chain.isHealthy) return null // no need to update
+
+        chain.isHealthy = false
+        return chain
+    }
+
+    const allChains = await store.find(Chain)
+    const updatedChains = (
+        await Promise.all(
+            allChains.map(async (chain): Promise<Chain | null> => {
+                // can't be healthy if chain has no rpcs
+                if (!chain.rpcs) return setUnhealthy(chain)
+
+                const maxAttempts = chain.rpcs.length
+                for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+                    // try to connect to chain
+                    let socket: WsProvider | null = null
+                    try {
+                        socket = new WsProvider(chain.rpcs, 0)
+
+                        const data = await new Promise(
+                            async (_resolve, _reject) => {
+                                let done = false
+                                const resolve = (val?: any) => {
+                                    done = true
+                                    _resolve(val)
+                                }
+                                const reject = (val?: any) => {
+                                    done = true
+                                    _reject(val)
+                                }
+                                if (socket === null) return reject()
+                                socket.on('error', reject)
+
+                                setTimeout(() => {
+                                    if (!done) reject('timeout')
+                                }, 120_000) // 120_000ms = 120s = 2m
+
+                                console.log(chain.id, 'connecting')
+
+                                await socket.connect()
+
+                                console.log(chain.id, 'connected')
+
+                                await socket.isReady
+
+                                const [runtimeVersion] = await Promise.all([
+                                    socket.send('state_getRuntimeVersion', []),
+                                ])
+
+                                console.log(
+                                    chain.id,
+                                    'runtimeVersion',
+                                    runtimeVersion.specName,
+                                    runtimeVersion.specVersion
+                                )
+
+                                resolve([])
+                            }
+                        )
+
+                        chain.isHealthy = true
+                        return chain
+                    } catch (error) {
+                        if (maxAttempts > attempt)
+                            console.log(chain.id, `attempt ${attempt} failed`)
+                        continue
+                        // return setUnhealthy(chain)
+                    } finally {
+                        socket !== null && socket.disconnect()
+                    }
+                }
+
+                // ran out of attempts
+                return setUnhealthy(chain)
+
+                // // if we made it this far, chain is healthy!
+                // chain.isHealthy = true
+                // return chain
+            })
+        )
+    ).filter((chain): chain is Chain => chain !== null)
+
+    if (updatedChains.length > 0) await store.save(updatedChains)
 })
 
 // indexer breaks if we don't subscribe to at least one type of event in addition to the postBlock hook
