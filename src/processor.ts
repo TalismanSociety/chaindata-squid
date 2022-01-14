@@ -65,7 +65,6 @@ processor.addPostHook(async ({ block, store }) => {
             ? await getOrCreate(store, Chain, chaindata.relay.id)
             : null
 
-        if (chaindata.relay?.paraId) chain.paraId = chaindata.relay?.paraId
         // chain.genesisHash =
         chain.prefix = chaindata.prefix
         chain.name = chaindata.name
@@ -74,6 +73,7 @@ processor.addPostHook(async ({ block, store }) => {
         chain.existentialDeposit = chaindata.existentialDeposit
         chain.account = chaindata.account
         chain.rpcs = chaindata.rpcs
+        if (relay !== null && chaindata.paraId) chain.paraId = chaindata.paraId
         chain.relay = relay
 
         await store.save(chain)
