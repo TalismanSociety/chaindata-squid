@@ -12,9 +12,6 @@ export class Chain {
   @PrimaryColumn_()
   id!: string
 
-  @Column_("integer", {nullable: true})
-  paraId!: number | undefined | null
-
   @Column_("text", {nullable: true})
   genesisHash!: string | undefined | null
 
@@ -41,6 +38,9 @@ export class Chain {
 
   @OneToMany_(() => Chain, e => e.relay)
   parathreads!: Chain[]
+
+  @Column_("integer", {nullable: true})
+  paraId!: number | undefined | null
 
   @Index_()
   @ManyToOne_(() => Chain, {nullable: true})

@@ -1,7 +1,6 @@
 type Chain @entity {
   "Network identifier"
   id: ID!
-  paraId: Int
   genesisHash: String
   prefix: Int
   name: String
@@ -10,6 +9,7 @@ type Chain @entity {
   existentialDeposit: String
   account: String
   rpcs: [String!]!
-  parathreads: [Chain!] @derivedFrom(field: "relay")
-  relay: Chain
+  parathreads: [Chain!] @derivedFrom(field: "relay") # if relaychain
+  paraId: Int # if parachain
+  relay: Chain # if parachain
 }
