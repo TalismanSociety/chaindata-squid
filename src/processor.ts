@@ -68,9 +68,9 @@ processor.addPostHook(async ({ block, store }) => {
         // chain.genesisHash =
         chain.prefix = chaindata.prefix
         chain.name = chaindata.name
-        chain.token = chaindata.token
-        chain.decimals = chaindata.decimals
-        chain.existentialDeposit = chaindata.existentialDeposit
+        // chain.token = chaindata.token
+        // chain.decimals = chaindata.decimals
+        // chain.existentialDeposit = chaindata.existentialDeposit
         chain.account = chaindata.account
         chain.rpcs = chaindata.rpcs
         if (relay !== null && chaindata.paraId) chain.paraId = chaindata.paraId
@@ -102,48 +102,64 @@ processor.addPostHook(async ({ block, store }) => {
                     try {
                         socket = new WsProvider(chain.rpcs, 0)
 
-                        const data = await new Promise(
-                            async (_resolve, _reject) => {
-                                let done = false
-                                const resolve = (val?: any) => {
-                                    done = true
-                                    _resolve(val)
-                                }
-                                const reject = (val?: any) => {
-                                    done = true
-                                    _reject(val)
-                                }
-                                if (socket === null) return reject()
-                                socket.on('error', reject)
-
-                                setTimeout(() => {
-                                    if (!done) reject('timeout')
-                                }, 120_000) // 120_000ms = 120s = 2m
-
-                                console.log(chain.id, 'connecting')
-
-                                await socket.connect()
-
-                                console.log(chain.id, 'connected')
-
-                                await socket.isReady
-
-                                const [runtimeVersion] = await Promise.all([
-                                    socket.send('state_getRuntimeVersion', []),
-                                ])
-
-                                console.log(
-                                    chain.id,
-                                    'runtimeVersion',
-                                    runtimeVersion.specName,
-                                    runtimeVersion.specVersion
-                                )
-
-                                resolve([])
+                        const [
+                            genesisHash,
+                            runtimeVersion,
+                            chainName,
+                            { ss58Format, tokenDecimals, tokenSymbol },
+                        ] = await new Promise(async (_resolve, _reject) => {
+                            let done = false
+                            const resolve = (val?: any) => {
+                                done = true
+                                _resolve(val)
                             }
+                            const reject = (val?: any) => {
+                                done = true
+                                _reject(val)
+                            }
+                            if (socket === null) return reject()
+                            socket.on('error', reject)
+
+                            setTimeout(() => {
+                                if (!done) reject('timeout')
+                            }, 120_000) // 120_000ms = 120s = 2m
+
+                            console.log(chain.id, 'connecting')
+
+                            await socket.connect()
+
+                            console.log(chain.id, 'connected')
+
+                            await socket.isReady
+
+                            resolve(
+                                await Promise.all([
+                                    socket.send('chain_getBlockHash', [0]),
+                                    socket.send('state_getRuntimeVersion', []),
+                                    socket.send('system_chain', []),
+                                    socket.send('system_properties', []),
+                                ])
+                            )
+                        })
+
+                        console.log(
+                            chain.id,
+                            'runtimeVersion',
+                            runtimeVersion.specName,
+                            runtimeVersion.specVersion
                         )
 
+                        chain.name = chainName
+                        chain.genesisHash = genesisHash
+                        chain.prefix = ss58Format
+                        chain.token = Array.isArray(tokenSymbol)
+                            ? tokenSymbol[0]
+                            : tokenSymbol
+                        chain.decimals = Array.isArray(tokenDecimals)
+                            ? tokenDecimals[0]
+                            : tokenDecimals
                         chain.isHealthy = true
+
                         return chain
                     } catch (error) {
                         if (maxAttempts > attempt)
