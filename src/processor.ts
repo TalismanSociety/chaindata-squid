@@ -9,7 +9,7 @@ const processor = new SubstrateProcessor('chaindata')
 
 processor.setTypesBundle('kusama')
 processor.setBatchSize(500)
-processor.setBlockRange({ from: 10_950_000 })
+processor.setBlockRange({ from: 11_040_000 })
 
 processor.setDataSource({
     archive: 'https://kusama.indexer.gc.subsquid.io/v4/graphql',
