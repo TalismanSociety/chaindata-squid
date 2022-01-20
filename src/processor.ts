@@ -89,7 +89,7 @@ processor.addPostHook(async ({ block, store }) => {
             // try to connect to chain
             let socket: WsProvider | null = null
             try {
-                socket = new WsProvider(chain.rpcs, 0, {
+                socket = new WsProvider(chain.rpcs[attempt - 1], 0, {
                     // some RPCs might reject this header, in which case we want to set isHealthy to false
                     Origin: 'chrome-extension://abpofhpcakjhnpklgodncneklaobppdc',
                 })
