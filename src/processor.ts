@@ -1,12 +1,9 @@
 import https from 'https'
-import {
-    EventHandlerContext,
-    Store,
-    SubstrateProcessor,
-} from '@subsquid/substrate-processor'
+import { Store, SubstrateProcessor } from '@subsquid/substrate-processor'
+import { createMetadata, getRegistry } from '@substrate/txwrapper-polkadot'
 import { WsProvider } from '@polkadot/api'
+import { hexToBn } from '@polkadot/util'
 import { Chain } from './model'
-import { BalancesTransferEvent } from './types/events'
 
 const processor = new SubstrateProcessor('chaindata')
 
@@ -56,7 +53,6 @@ processor.addPostHook(async ({ block, store }) => {
         req.end()
     })
 
-    // console.debug('received data', data)
     const json = JSON.parse(data)
 
     for (const chaindata of json) {
@@ -65,12 +61,10 @@ processor.addPostHook(async ({ block, store }) => {
             ? await getOrCreate(store, Chain, chaindata.relay.id)
             : null
 
-        // chain.genesisHash =
-        chain.prefix = chaindata.prefix
+        if (!chain.prefix) chain.prefix = chaindata.prefix
         chain.name = chaindata.name
-        // chain.token = chaindata.token
-        // chain.decimals = chaindata.decimals
-        // chain.existentialDeposit = chaindata.existentialDeposit
+        if (!chain.token) chain.token = chaindata.token
+        if (!chain.decimals) chain.decimals = chaindata.decimals
         chain.account = chaindata.account
         chain.rpcs = chaindata.rpcs
         if (relay !== null && chaindata.paraId) chain.paraId = chaindata.paraId
@@ -79,19 +73,21 @@ processor.addPostHook(async ({ block, store }) => {
         await store.save(chain)
     }
 
-    console.debug('updated chaindata')
+    const updatedChains = await Promise.all(
+        (
+            await store.find(Chain)
+        )
+            .sort((a, b) => {
+                if (a.id === b.id) return 0
+                if (a.id === 'polkadot') return -1
+                if (b.id === 'polkadot') return 1
+                if (a.id === 'kusama') return -1
+                if (b.id === 'kusama') return 1
+                return a.id.localeCompare(b.id)
+            })
+            .map(async (chain, sortIndex): Promise<Chain | null> => {
+                chain.sortIndex = sortIndex
 
-    const setUnhealthy = (chain: Chain): Chain | null => {
-        if (!chain.isHealthy) return null // no need to update
-
-        chain.isHealthy = false
-        return chain
-    }
-
-    const allChains = await store.find(Chain)
-    const updatedChains = (
-        await Promise.all(
-            allChains.map(async (chain): Promise<Chain | null> => {
                 // can't be healthy if chain has no rpcs
                 if (!chain.rpcs) return setUnhealthy(chain)
 
@@ -105,6 +101,7 @@ processor.addPostHook(async ({ block, store }) => {
                         const [
                             genesisHash,
                             runtimeVersion,
+                            metadataRpc,
                             chainName,
                             { ss58Format, tokenDecimals, tokenSymbol },
                         ] = await new Promise(async (_resolve, _reject) => {
@@ -117,18 +114,14 @@ processor.addPostHook(async ({ block, store }) => {
                                 done = true
                                 _reject(val)
                             }
-                            if (socket === null) return reject()
-                            socket.on('error', reject)
+                            if (socket === null) return reject('no socket')
+                            socket.on('error', () => reject('socket error'))
 
                             setTimeout(() => {
                                 if (!done) reject('timeout')
                             }, 120_000) // 120_000ms = 120s = 2m
 
-                            console.log(chain.id, 'connecting')
-
                             await socket.connect()
-
-                            console.log(chain.id, 'connected')
 
                             await socket.isReady
 
@@ -136,20 +129,42 @@ processor.addPostHook(async ({ block, store }) => {
                                 await Promise.all([
                                     socket.send('chain_getBlockHash', [0]),
                                     socket.send('state_getRuntimeVersion', []),
+                                    socket.send('state_getMetadata', []),
                                     socket.send('system_chain', []),
                                     socket.send('system_properties', []),
                                 ])
                             )
                         })
 
-                        console.log(
-                            chain.id,
-                            'runtimeVersion',
-                            runtimeVersion.specName,
-                            runtimeVersion.specVersion
-                        )
+                        const { specName, specVersion, implName } =
+                            runtimeVersion
+                        const registry = getRegistry({
+                            specName,
+                            specVersion,
+                            metadataRpc,
+                            chainName,
+                        })
+                        const metadata = createMetadata(registry, metadataRpc)
 
-                        chain.name = chainName
+                        const existentialDepositCodec =
+                            metadata.asLatest.pallets
+                                .find((pallet: any) =>
+                                    pallet.name.eq('Balances')
+                                )
+                                ?.constants.find((constant: any) =>
+                                    constant.name.eq('ExistentialDeposit')
+                                )?.value
+                        const existentialDeposit = existentialDepositCodec
+                            ? hexToBn(existentialDepositCodec.toHex(), {
+                                  isLe: true,
+                                  isNegative: false,
+                              }).toString()
+                            : null
+
+                        chain.chainName = chainName
+                        chain.implName = implName
+                        chain.specName = specName
+                        chain.specVersion = specVersion
                         chain.genesisHash = genesisHash
                         chain.prefix = ss58Format
                         chain.token = Array.isArray(tokenSymbol)
@@ -158,14 +173,25 @@ processor.addPostHook(async ({ block, store }) => {
                         chain.decimals = Array.isArray(tokenDecimals)
                             ? tokenDecimals[0]
                             : tokenDecimals
+                        chain.existentialDeposit = existentialDeposit
                         chain.isHealthy = true
 
                         return chain
                     } catch (error) {
-                        if (maxAttempts > attempt)
-                            console.log(chain.id, `attempt ${attempt} failed`)
-                        continue
-                        // return setUnhealthy(chain)
+                        console.debug(error)
+                        if (maxAttempts > attempt) {
+                            console.log(
+                                chain.id,
+                                `attempt ${attempt} failed`,
+                                error
+                            )
+                            continue
+                        }
+                        console.log(
+                            chain.id,
+                            `all attempts (${maxAttempts}) failed`,
+                            error
+                        )
                     } finally {
                         socket !== null && socket.disconnect()
                     }
@@ -173,40 +199,16 @@ processor.addPostHook(async ({ block, store }) => {
 
                 // ran out of attempts
                 return setUnhealthy(chain)
-
-                // // if we made it this far, chain is healthy!
-                // chain.isHealthy = true
-                // return chain
             })
-        )
-    ).filter((chain): chain is Chain => chain !== null)
+    )
 
-    if (updatedChains.length > 0) await store.save(updatedChains)
+    await store.save(updatedChains)
 })
 
 // indexer breaks if we don't subscribe to at least one type of event in addition to the postBlock hook
 processor.addEventHandler('balances.Transfer', async () => {})
 
 processor.run()
-
-interface TransferEvent {
-    from: Uint8Array
-    to: Uint8Array
-    amount: bigint
-}
-
-function getTransferEvent(ctx: EventHandlerContext): TransferEvent {
-    let event = new BalancesTransferEvent(ctx)
-    if (event.isV1020) {
-        let [from, to, amount] = event.asV1020
-        return { from, to, amount }
-    } else if (event.isV1050) {
-        let [from, to, amount] = event.asV1050
-        return { from, to, amount }
-    } else {
-        return event.asLatest
-    }
-}
 
 async function getOrCreate<T extends { id: string }>(
     store: Store,
@@ -227,4 +229,9 @@ async function getOrCreate<T extends { id: string }>(
 
 type EntityConstructor<T> = {
     new (...args: any[]): T
+}
+
+const setUnhealthy = (chain: Chain): Chain | null => {
+    chain.isHealthy = false
+    return chain
 }

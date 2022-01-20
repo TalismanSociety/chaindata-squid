@@ -1,16 +1,55 @@
 type Chain @entity {
-  "Network identifier"
+  "talisman-defined id for this chain"
   id: ID!
+
+  "index for sorting chains in a user-friendly way"
+  sortIndex: Int
+
+  "hash of the first block on this chain"
   genesisHash: String
+
+  "ss58 prefix for this chain"
   prefix: Int
+
+  "talisman-defined name for this chain"
   name: String
+
+  "chain-specified name of this chain"
+  chainName: String
+
+  "implementation name for this chain"
+  implName: String
+
+  "specification name for this chain"
+  specName: String
+
+  "specification version for this chain"
+  specVersion: String
+
+  "native token symbol for this chain"
   token: String
+
+  "native token decimals for this chain"
   decimals: Int
+
+  "minimum native tokens per account for this chain"
   existentialDeposit: String
+
+  "account format for this chain"
   account: String
+
+  "talisman-defined rpcs for this chain"
   rpcs: [String!]!
+
+  "health status of this chain"
   isHealthy: Boolean!
-  parathreads: [Chain!] @derivedFrom(field: "relay") # if relaychain
-  paraId: Int # if parachain
-  relay: Chain # if parachain
+
+  "parathreads of this chain (if this chain is a relaychain)"
+  parathreads: [Chain!] @derivedFrom(field: "relay")
+
+  "paraId of this chain (if this chain is a parachain for another chain)"
+  paraId: Int
+
+  "relaychain of this chain (if this chain is a parachain for another chain)"
+  relay: Chain
 }
