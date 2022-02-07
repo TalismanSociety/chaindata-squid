@@ -35,6 +35,9 @@ type Chain @entity {
   "minimum native tokens per account for this chain"
   existentialDeposit: String
 
+  "orml tokens for this chain"
+  tokens: [Token!]
+
   "account format for this chain"
   account: String
 
@@ -52,4 +55,18 @@ type Chain @entity {
 
   "relaychain of this chain (if this chain is a parachain for another chain)"
   relay: Chain
+}
+
+type Token {
+  "the on-chain index of this token"
+  index: Int
+
+  "token symbol"
+  token: String
+
+  "token decimals"
+  decimals: Int
+
+  "minimum tokens per account"
+  existentialDeposit: String
 }

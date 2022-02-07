@@ -2,8 +2,9 @@ import axios from 'axios'
 import { Store, SubstrateProcessor } from '@subsquid/substrate-processor'
 import { createMetadata, getRegistry } from '@substrate/txwrapper-polkadot'
 import { WsProvider } from '@polkadot/api'
+import { Metadata } from '@polkadot/types'
 import { hexToBn } from '@polkadot/util'
-import { Chain } from './model'
+import { Chain, Token } from './model'
 
 const processor = new SubstrateProcessor('chaindata')
 
@@ -17,7 +18,7 @@ const chainRpcTimeout = 120_000 // 120_000ms = 120 seconds = 2 minutes timeout o
 
 processor.setTypesBundle('kusama')
 processor.setBatchSize(500)
-processor.setBlockRange({ from: 11_040_000 })
+processor.setBlockRange({ from: 11_299_000 })
 
 processor.setDataSource({
     archive: 'https://kusama.indexer.gc.subsquid.io/v4/graphql',
@@ -90,7 +91,8 @@ processor.addPostHook(async ({ block, store }) => {
             let socket: WsProvider | null = null
             try {
                 socket = new WsProvider(chain.rpcs[attempt - 1], 0, {
-                    // some RPCs might reject this header, in which case we want to set isHealthy to false
+                    // our extension will send this header with every request
+                    // some RPCs reject this header, in which case we want to set isHealthy to false
                     Origin: 'chrome-extension://abpofhpcakjhnpklgodncneklaobppdc',
                 })
 
@@ -116,7 +118,28 @@ processor.addPostHook(async ({ block, store }) => {
                     metadataRpc,
                     chainName,
                 })
-                const metadata = createMetadata(registry, metadataRpc)
+                const metadata: Metadata = createMetadata(registry, metadataRpc)
+
+                const tokenSymbolDef = (metadata.asLatest.lookup?.types || []).find(
+                    ({ type }) => type.path.slice(-1).toString() === 'TokenSymbol'
+                )
+                const tokenSymbolVariants = (tokenSymbolDef?.type?.def?.asVariant?.variants.toJSON() || []) as Array<{
+                    name: string
+                    index: number
+                }>
+                const tokenIndexLookup = Object.fromEntries(tokenSymbolVariants.map(({ name, index }) => [name, index]))
+
+                const tokens = Array.isArray(tokenSymbol)
+                    ? tokenSymbol
+                          .map((symbol: string, index: number) => ({
+                              index: tokenIndexLookup[symbol],
+                              token: symbol,
+                              decimals: tokenDecimals[index],
+                          }))
+                          .filter(({ index }) => index !== undefined)
+                          .map((token) => new Token(token))
+                    : []
+                tokens.sort((a, b) => (a?.index || 0) - (b?.index || 0))
 
                 const existentialDepositCodec = metadata.asLatest.pallets
                     .find((pallet: any) => pallet.name.eq('Balances'))
@@ -138,6 +161,7 @@ processor.addPostHook(async ({ block, store }) => {
                 chain.token = Array.isArray(tokenSymbol) ? tokenSymbol[0] : tokenSymbol
                 chain.decimals = Array.isArray(tokenDecimals) ? tokenDecimals[0] : tokenDecimals
                 chain.existentialDeposit = existentialDeposit
+                chain.tokens = tokens.length > 0 ? tokens : null
                 chain.isHealthy = true
 
                 return chain

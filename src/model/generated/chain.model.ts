@@ -1,4 +1,6 @@
 import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, OneToMany as OneToMany_, ManyToOne as ManyToOne_, Index as Index_} from "typeorm"
+import * as marshal from "./marshal"
+import {Token} from "./_token"
 
 @Entity_()
 export class Chain {
@@ -77,6 +79,12 @@ export class Chain {
    */
   @Column_("text", {nullable: true})
   existentialDeposit!: string | undefined | null
+
+  /**
+   * orml tokens for this chain
+   */
+  @Column_("jsonb", {transformer: {to: obj => obj == null ? undefined : obj.map((val: any) => val.toJSON()), from: obj => obj == null ? undefined : marshal.fromList(obj, val => new Token(undefined, marshal.nonNull(val)))}, nullable: true})
+  tokens!: (Token)[] | undefined | null
 
   /**
    * account format for this chain
