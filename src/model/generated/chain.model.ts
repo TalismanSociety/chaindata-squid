@@ -93,6 +93,12 @@ export class Chain {
   account!: string | undefined | null
 
   /**
+   * subscan endpoint for this chain
+   */
+  @Column_("text", {nullable: true})
+  subscanUrl!: string | undefined | null
+
+  /**
    * talisman-defined rpcs for this chain
    */
   @Column_("text", {array: true, nullable: false})

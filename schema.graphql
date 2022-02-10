@@ -41,6 +41,9 @@ type Chain @entity {
   "account format for this chain"
   account: String
 
+  "subscan endpoint for this chain"
+  subscanUrl: String
+
   "talisman-defined rpcs for this chain"
   rpcs: [String!]!
 
