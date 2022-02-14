@@ -12,13 +12,15 @@ const numBlocksPerExecution = 50 // only run every 50 blocks ≈ 5 minutes at 6s
 const skipBlocksOlderThan = 300_000 // 300_000ms = 300 seconds = skip execution for any blocks older than 5 minutes
 const githubChaindataUrl =
     'https://raw.githubusercontent.com/TalismanSociety/chaindata/graphql-chaindata-imitator/chaindata.json'
+const githubTestnetsChaindataUrl =
+    'https://raw.githubusercontent.com/TalismanSociety/chaindata/graphql-chaindata-imitator/testnets-chaindata.json'
 
 // chain is set to unhealthy if RPC doesn't respond before this timeout
 const chainRpcTimeout = 120_000 // 120_000ms = 120 seconds = 2 minutes timeout on RPC requests
 
 processor.setTypesBundle('kusama')
 processor.setBatchSize(500)
-processor.setBlockRange({ from: 11_340_000 })
+processor.setBlockRange({ from: 11_390_000 })
 
 processor.setDataSource({
     archive: 'https://kusama.indexer.gc.subsquid.io/v4/graphql',
@@ -41,7 +43,14 @@ processor.addPostHook(async ({ block, store }) => {
     const githubChaindataResponse = await axios.get(githubChaindataUrl)
     const githubChaindata: GithubChain[] = githubChaindataResponse.data
 
-    for (const githubChain of githubChaindata) {
+    // fetch github testnet-chaindata
+    const githubTestnetsChaindataResponse = await axios.get(githubTestnetsChaindataUrl)
+    const githubTestnetsChaindata: GithubChain[] = githubTestnetsChaindataResponse.data.map((chain: GithubChain) => ({
+        ...chain,
+        isTestnet: true,
+    }))
+
+    for (const githubChain of [...githubChaindata, ...githubTestnetsChaindata]) {
         const chain = await getOrCreate(store, Chain, githubChain.id)
         const relay = githubChain.relay?.id ? await getOrCreate(store, Chain, githubChain.relay.id) : null
 
@@ -56,6 +65,7 @@ processor.addPostHook(async ({ block, store }) => {
         chain.account = githubChain.account
         chain.subscanUrl = githubChain.subscanUrl
         chain.rpcs = githubChain.rpcs || []
+        chain.isTestnet = githubChain.isTestnet || false
 
         // only set relay and paraId if both exist on githubChain
         if (relay !== null && githubChain.paraId) chain.paraId = githubChain.paraId
@@ -75,6 +85,10 @@ processor.addPostHook(async ({ block, store }) => {
         if (b.id === 'polkadot') return 1
         if (a.id === 'kusama') return -1
         if (b.id === 'kusama') return 1
+        if (a.isTestnet !== b.isTestnet) {
+            if (a.isTestnet) return 1
+            if (b.isTestnet) return -1
+        }
         return a.id.localeCompare(b.id)
     })
 
@@ -218,6 +232,7 @@ const setUnhealthy = (chain: Chain): Chain => {
 
 type GithubChain = {
     id: string
+    isTestnet?: true
     prefix?: number | null
     name?: string | null
     token?: string | null

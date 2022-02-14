@@ -2,6 +2,9 @@ type Chain @entity {
   "talisman-defined id for this chain"
   id: ID!
 
+  "is chain this a testnet?"
+  isTestnet: Boolean!
+
   "index for sorting chains in a user-friendly way"
   sortIndex: Int
 

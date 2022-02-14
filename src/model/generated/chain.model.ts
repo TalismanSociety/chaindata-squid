@@ -15,6 +15,12 @@ export class Chain {
   id!: string
 
   /**
+   * is chain this a testnet?
+   */
+  @Column_("bool", {nullable: false})
+  isTestnet!: boolean
+
+  /**
    * index for sorting chains in a user-friendly way
    */
   @Column_("integer", {nullable: true})
