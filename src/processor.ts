@@ -20,7 +20,7 @@ const chainRpcTimeout = 120_000 // 120_000ms = 120 seconds = 2 minutes timeout o
 
 processor.setTypesBundle('kusama')
 processor.setBatchSize(500)
-processor.setBlockRange({ from: 11_390_000 })
+processor.setBlockRange({ from: 11_520_000 })
 
 processor.setDataSource({
     archive: 'https://kusama.indexer.gc.subsquid.io/v4/graphql',
@@ -69,7 +69,9 @@ processor.addPostHook(async ({ block, store }) => {
 
         // only set relay and paraId if both exist on githubChain
         if (relay !== null && githubChain.paraId) chain.paraId = githubChain.paraId
+        else chain.paraId = null
         if (relay !== null && githubChain.paraId) chain.relay = relay
+        else chain.relay = null
 
         // save
         await store.save(chain)
