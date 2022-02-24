@@ -13,7 +13,10 @@
     "processor:start": "node lib/processor.js",
     "query-node:start": "squid-graphql-server",
     "release:hash": "sqd squid release chaindata@`git rev-parse --short HEAD`",
+    "release:test": "sqd squid release chaindata@test --source git@github.com:TalismanSociety/chaindata.git#subsquid",
     "release:latest": "sqd squid release chaindata@latest --source git@github.com:TalismanSociety/chaindata.git#subsquid",
+    "update:test": "sqd squid update chaindata@test --source git@github.com:TalismanSociety/chaindata.git#subsquid",
+    "update:test:resetdb": "sqd squid update chaindata@test --source git@github.com:TalismanSociety/chaindata.git#subsquid --hardReset",
     "update:latest": "sqd squid update chaindata@latest --source git@github.com:TalismanSociety/chaindata.git#subsquid",
     "update:latest:resetdb": "sqd squid update chaindata@latest --source git@github.com:TalismanSociety/chaindata.git#subsquid --hardReset"
   },
