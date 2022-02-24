@@ -48,7 +48,7 @@ type Chain @entity {
   subscanUrl: String
 
   "talisman-defined rpcs for this chain"
-  rpcs: [String!]!
+  rpcs: [Rpc!]!
 
   "health status of this chain"
   isHealthy: Boolean!
@@ -75,4 +75,12 @@ type Token {
 
   "minimum tokens per account"
   existentialDeposit: String
+}
+
+type Rpc {
+  "url of this rpc"
+  url: String!
+
+  "health status of this rpc"
+  isHealthy: Boolean!
 }

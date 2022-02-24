@@ -1,6 +1,7 @@
 import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, OneToMany as OneToMany_, ManyToOne as ManyToOne_, Index as Index_} from "typeorm"
 import * as marshal from "./marshal"
 import {Token} from "./_token"
+import {Rpc} from "./_rpc"
 
 @Entity_()
 export class Chain {
@@ -107,8 +108,8 @@ export class Chain {
   /**
    * talisman-defined rpcs for this chain
    */
-  @Column_("text", {array: true, nullable: false})
-  rpcs!: (string)[]
+  @Column_("jsonb", {transformer: {to: obj => obj.map((val: any) => val.toJSON()), from: obj => marshal.fromList(obj, val => new Rpc(undefined, marshal.nonNull(val)))}, nullable: false})
+  rpcs!: (Rpc)[]
 
   /**
    * health status of this chain

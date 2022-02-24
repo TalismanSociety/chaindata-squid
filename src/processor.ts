@@ -4,7 +4,7 @@ import { createMetadata, getRegistry } from '@substrate/txwrapper-polkadot'
 import { WsProvider } from '@polkadot/api'
 import { Metadata } from '@polkadot/types'
 import { hexToBn } from '@polkadot/util'
-import { Chain, Token } from './model'
+import { Chain, Token, Rpc } from './model'
 
 const processor = new SubstrateProcessor('chaindata')
 
@@ -15,12 +15,12 @@ const githubChaindataUrl =
 const githubTestnetsChaindataUrl =
     'https://raw.githubusercontent.com/TalismanSociety/chaindata/graphql-chaindata-imitator/testnets-chaindata.json'
 
-// chain is set to unhealthy if RPC doesn't respond before this timeout
+// chain is set to unhealthy if no RPC responds before this timeout
 const chainRpcTimeout = 120_000 // 120_000ms = 120 seconds = 2 minutes timeout on RPC requests
 
 processor.setTypesBundle('kusama')
 processor.setBatchSize(500)
-processor.setBlockRange({ from: 11_520_000 })
+processor.setBlockRange({ from: 11_540_000 })
 
 processor.setDataSource({
     archive: 'https://kusama.indexer.gc.subsquid.io/v4/graphql',
@@ -64,7 +64,7 @@ processor.addPostHook(async ({ block, store }) => {
         chain.name = githubChain.name
         chain.account = githubChain.account
         chain.subscanUrl = githubChain.subscanUrl
-        chain.rpcs = githubChain.rpcs || []
+        chain.rpcs = (githubChain.rpcs || []).map((url) => new Rpc({ url, isHealthy: false }))
         chain.isTestnet = githubChain.isTestnet || false
 
         // only set relay and paraId if both exist on githubChain
@@ -99,15 +99,45 @@ processor.addPostHook(async ({ block, store }) => {
         if (chain.sortIndex !== sortIndex) chain.sortIndex = sortIndex
 
         // can't be healthy if chain has no rpcs
-        if (!chain.rpcs) return setUnhealthy(chain)
+        if (!chain.rpcs || chain.rpcs.length < 1) return setUnhealthy(chain)
+
+        // get health status of rpcs
+        await Promise.all(
+            Object.values(chain.rpcs).map(async (rpc) => {
+                // try to connect to rpc
+                let socket: WsProvider | null = null
+                try {
+                    socket = new WsProvider(rpc.url, 0, {
+                        // our extension will send this header with every request
+                        // some RPCs reject this header, in which case we want to set isHealthy to false
+                        Origin: 'chrome-extension://abpofhpcakjhnpklgodncneklaobppdc',
+                    })
+
+                    // fetch genesis hash
+                    await sendWithTimeout(socket, [['chain_getBlockHash', [0]]], chainRpcTimeout)
+
+                    // set healthy
+                    rpc.isHealthy = true
+                } catch (error) {
+                    // set unhealthy
+                    rpc.isHealthy = false
+                } finally {
+                    socket !== null && socket.disconnect()
+                }
+            })
+        )
+
+        // set chain unhealthy if there is no healthy rpcs
+        const healthyChainRpcUrls = chain.rpcs.filter(({ isHealthy }) => isHealthy).map(({ url }) => url)
+        if (healthyChainRpcUrls.length < 1) return setUnhealthy(chain)
 
         // fetch chaindata from rpc
-        const maxAttempts = chain.rpcs.length
+        const maxAttempts = healthyChainRpcUrls.length * 2
         for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
             // try to connect to chain
             let socket: WsProvider | null = null
             try {
-                socket = new WsProvider(chain.rpcs[attempt - 1], 0, {
+                socket = new WsProvider(healthyChainRpcUrls[(attempt - 1) % healthyChainRpcUrls.length], 0, {
                     // our extension will send this header with every request
                     // some RPCs reject this header, in which case we want to set isHealthy to false
                     Origin: 'chrome-extension://abpofhpcakjhnpklgodncneklaobppdc',
@@ -228,7 +258,8 @@ type EntityConstructor<T> = {
 }
 
 const setUnhealthy = (chain: Chain): Chain => {
-    if (chain.isHealthy) chain.isHealthy = false
+    chain.isHealthy = false
+    chain.rpcs.forEach((rpc) => (rpc.isHealthy = false))
     return chain
 }
 
