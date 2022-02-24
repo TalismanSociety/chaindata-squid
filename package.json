@@ -12,8 +12,10 @@
     "processor:dev-start": "npm run build && node -r dotenv/config lib/processor.js",
     "processor:start": "node lib/processor.js",
     "query-node:start": "squid-graphql-server",
-    "release": "sqd squid release chaindata@`git rev-parse --short HEAD`",
-    "release:latest": "sqd squid kill chaindata@latest && sqd squid release chaindata@latest"
+    "release:hash": "sqd squid release chaindata@`git rev-parse --short HEAD`",
+    "release:latest": "sqd squid release chaindata@latest --source git@github.com:TalismanSociety/chaindata.git#subsquid",
+    "update:latest": "sqd squid update chaindata@latest --source git@github.com:TalismanSociety/chaindata.git#subsquid",
+    "update:latest:resetdb": "sqd squid update chaindata@latest --source git@github.com:TalismanSociety/chaindata.git#subsquid --hardReset"
   },
   "dependencies": {
     "@polkadot/api": "^7.3.1",
