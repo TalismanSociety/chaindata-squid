@@ -38,6 +38,9 @@ type Chain @entity {
   "minimum native tokens per account for this chain"
   existentialDeposit: String
 
+  "if this chain has orml tokens, this is the index of CurrencyId::Token used for identifying them on-chain"
+  tokensCurrencyIdIndex: Int
+
   "orml tokens for this chain"
   tokens: [Token!]
 
@@ -64,7 +67,7 @@ type Chain @entity {
 }
 
 type Token {
-  "the on-chain index of this token"
+  "the on-chain TokenSymbol index of this token"
   index: Int
 
   "token symbol"

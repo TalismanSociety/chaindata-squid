@@ -18,7 +18,7 @@ export class Token {
   }
 
   /**
-   * the on-chain index of this token
+   * the on-chain TokenSymbol index of this token
    */
   get index(): number | undefined | null {
     return this._index

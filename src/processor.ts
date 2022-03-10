@@ -167,6 +167,16 @@ processor.addPostHook(async ({ block, store }) => {
                 })
                 const metadata: Metadata = createMetadata(registry, metadataRpc)
 
+                const currencyIdDef = (metadata.asLatest.lookup?.types || []).find(
+                    ({ type }) => type.path.slice(-1).toString() === 'CurrencyId'
+                )
+                const currencyIdVariants = (currencyIdDef?.type?.def?.asVariant?.variants.toJSON() || []) as Array<{
+                    name: string
+                    index: number
+                }>
+                const currencyIdLookup = Object.fromEntries(currencyIdVariants.map(({ name, index }) => [name, index]))
+                const tokensCurrencyIdIndex = currencyIdLookup['Token']
+
                 const tokenSymbolDef = (metadata.asLatest.lookup?.types || []).find(
                     ({ type }) => type.path.slice(-1).toString() === 'TokenSymbol'
                 )
@@ -208,6 +218,7 @@ processor.addPostHook(async ({ block, store }) => {
                 chain.token = Array.isArray(tokenSymbol) ? tokenSymbol[0] : tokenSymbol
                 chain.decimals = Array.isArray(tokenDecimals) ? tokenDecimals[0] : tokenDecimals
                 chain.existentialDeposit = existentialDeposit
+                chain.tokensCurrencyIdIndex = tokensCurrencyIdIndex
                 chain.tokens = tokens.length > 0 ? tokens : null
                 chain.isHealthy = true
 

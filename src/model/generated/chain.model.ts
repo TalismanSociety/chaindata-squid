@@ -88,6 +88,12 @@ export class Chain {
   existentialDeposit!: string | undefined | null
 
   /**
+   * if this chain has orml tokens, this is the index of CurrencyId::Token used for identifying them on-chain
+   */
+  @Column_("integer", {nullable: true})
+  tokensCurrencyIdIndex!: number | undefined | null
+
+  /**
    * orml tokens for this chain
    */
   @Column_("jsonb", {transformer: {to: obj => obj == null ? undefined : obj.map((val: any) => val.toJSON()), from: obj => obj == null ? undefined : marshal.fromList(obj, val => new Token(undefined, marshal.nonNull(val)))}, nullable: true})
