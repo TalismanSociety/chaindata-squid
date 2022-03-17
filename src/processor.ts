@@ -10,10 +10,9 @@ const processor = new SubstrateProcessor('chaindata')
 
 const numBlocksPerExecution = 50 // only run every 50 blocks ≈ 5 minutes at 6s / block
 const skipBlocksOlderThan = 300_000 // 300_000ms = 300 seconds = skip execution for any blocks older than 5 minutes
-const githubChaindataUrl =
-    'https://raw.githubusercontent.com/TalismanSociety/chaindata/graphql-chaindata-imitator/chaindata.json'
+const githubChaindataUrl = 'https://raw.githubusercontent.com/TalismanSociety/chaindata/main/chaindata.json'
 const githubTestnetsChaindataUrl =
-    'https://raw.githubusercontent.com/TalismanSociety/chaindata/graphql-chaindata-imitator/testnets-chaindata.json'
+    'https://raw.githubusercontent.com/TalismanSociety/chaindata/main/testnets-chaindata.json'
 
 // chain is set to unhealthy if no RPC responds before this timeout
 const chainRpcTimeout = 120_000 // 120_000ms = 120 seconds = 2 minutes timeout on RPC requests
