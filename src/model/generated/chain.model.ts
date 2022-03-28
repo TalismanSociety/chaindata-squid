@@ -1,6 +1,7 @@
 import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, OneToMany as OneToMany_, ManyToOne as ManyToOne_, Index as Index_} from "typeorm"
 import * as marshal from "./marshal"
 import {Token} from "./_token"
+import {Rates} from "./_rates"
 import {Rpc} from "./_rpc"
 
 @Entity_()
@@ -70,22 +71,40 @@ export class Chain {
   specVersion!: string | undefined | null
 
   /**
-   * native token symbol for this chain
+   * native token for this chain
+   */
+  @Column_("jsonb", {transformer: {to: obj => obj == null ? undefined : obj.toJSON(), from: obj => obj == null ? undefined : new Token(undefined, obj)}, nullable: true})
+  nativeToken!: Token | undefined | null
+
+  /**
+   * native token symbol for this chain - deprecated: use chain.nativeToken.token
    */
   @Column_("text", {nullable: true})
   token!: string | undefined | null
 
   /**
-   * native token decimals for this chain
+   * native token decimals for this chain - deprecated: use chain.nativeToken.decimals
    */
   @Column_("integer", {nullable: true})
   decimals!: number | undefined | null
 
   /**
-   * minimum native tokens per account for this chain
+   * minimum native tokens per account for this chain - deprecated: use chain.nativeToken.existentialDeposit
    */
   @Column_("text", {nullable: true})
   existentialDeposit!: string | undefined | null
+
+  /**
+   * native token coingecko id for this chain - deprecated: use chain.nativeToken.coingeckoId
+   */
+  @Column_("text", {nullable: true})
+  coingeckoId!: string | undefined | null
+
+  /**
+   * native token rates for this chain - deprecated: use chain.nativeToken.rates
+   */
+  @Column_("jsonb", {transformer: {to: obj => obj == null ? undefined : obj.toJSON(), from: obj => obj == null ? undefined : new Rates(undefined, obj)}, nullable: true})
+  rates!: Rates | undefined | null
 
   /**
    * if this chain has orml tokens, this is the index of CurrencyId::Token used for identifying them on-chain

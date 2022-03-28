@@ -29,14 +29,23 @@ type Chain @entity {
   "specification version for this chain"
   specVersion: String
 
-  "native token symbol for this chain"
-  token: String
+  "native token for this chain"
+  nativeToken: Token
 
-  "native token decimals for this chain"
-  decimals: Int
+  "native token symbol for this chain - deprecated: use chain.nativeToken.token"
+  token: String @deprecated(reason: "use chain.nativeToken.token")
 
-  "minimum native tokens per account for this chain"
-  existentialDeposit: String
+  "native token decimals for this chain - deprecated: use chain.nativeToken.decimals"
+  decimals: Int @deprecated(reason: "use chain.nativeToken.decimals")
+
+  "minimum native tokens per account for this chain - deprecated: use chain.nativeToken.existentialDeposit"
+  existentialDeposit: String @deprecated(reason: "use chain.nativeToken.existentialDeposit")
+
+  "native token coingecko id for this chain - deprecated: use chain.nativeToken.coingeckoId"
+  coingeckoId: String @deprecated(reason: "use chain.nativeToken.coingeckoId")
+
+  "native token rates for this chain - deprecated: use chain.nativeToken.rates"
+  rates: Rates @deprecated(reason: "use chain.nativeToken.rates")
 
   "if this chain has orml tokens, this is the index of CurrencyId::Token used for identifying them on-chain"
   tokensCurrencyIdIndex: Int
@@ -78,6 +87,53 @@ type Token {
 
   "minimum tokens per account"
   existentialDeposit: String
+
+  "coingecko id for this token"
+  coingeckoId: String
+
+  "rates for this token"
+  rates: Rates
+}
+
+type Rates {
+  "us dollar rate"
+  usd: Float
+
+  "australian dollar rate"
+  aud: Float
+
+  "new zealand dollar rate"
+  nzd: Float
+
+  "canadian dollar rate"
+  cud: Float
+
+  "hong kong dollar rate"
+  hkd: Float
+
+  "euro rate"
+  eur: Float
+
+  "british pound sterling rate"
+  gbp: Float
+
+  "japanese yen rate"
+  jpy: Float
+
+  "south korean won rate"
+  krw: Float
+
+  "chinese yuan rate"
+  cny: Float
+
+  "btc rate"
+  btc: Float
+
+  "eth rate"
+  eth: Float
+
+  "dot rate"
+  dot: Float
 }
 
 type Rpc {

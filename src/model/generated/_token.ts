@@ -1,11 +1,14 @@
 import assert from "assert"
 import * as marshal from "./marshal"
+import {Rates} from "./_rates"
 
 export class Token {
   private _index!: number | undefined | null
   private _token!: string | undefined | null
   private _decimals!: number | undefined | null
   private _existentialDeposit!: string | undefined | null
+  private _coingeckoId!: string | undefined | null
+  private _rates!: Rates | undefined | null
 
   constructor(props?: Partial<Omit<Token, 'toJSON'>>, json?: any) {
     Object.assign(this, props)
@@ -14,6 +17,8 @@ export class Token {
       this._token = json.token == null ? undefined : marshal.string.fromJSON(json.token)
       this._decimals = json.decimals == null ? undefined : marshal.int.fromJSON(json.decimals)
       this._existentialDeposit = json.existentialDeposit == null ? undefined : marshal.string.fromJSON(json.existentialDeposit)
+      this._coingeckoId = json.coingeckoId == null ? undefined : marshal.string.fromJSON(json.coingeckoId)
+      this._rates = json.rates == null ? undefined : new Rates(undefined, json.rates)
     }
   }
 
@@ -61,12 +66,36 @@ export class Token {
     this._existentialDeposit = value
   }
 
+  /**
+   * coingecko id for this token
+   */
+  get coingeckoId(): string | undefined | null {
+    return this._coingeckoId
+  }
+
+  set coingeckoId(value: string | undefined | null) {
+    this._coingeckoId = value
+  }
+
+  /**
+   * rates for this token
+   */
+  get rates(): Rates | undefined | null {
+    return this._rates
+  }
+
+  set rates(value: Rates | undefined | null) {
+    this._rates = value
+  }
+
   toJSON(): object {
     return {
       index: this.index,
       token: this.token,
       decimals: this.decimals,
       existentialDeposit: this.existentialDeposit,
+      coingeckoId: this.coingeckoId,
+      rates: this.rates == null ? undefined : this.rates.toJSON(),
     }
   }
 }

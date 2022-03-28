@@ -1,10 +1,12 @@
 import axios from 'axios'
-import { Store, SubstrateProcessor } from '@subsquid/substrate-processor'
+import { SubstrateProcessor } from '@subsquid/substrate-processor'
 import { createMetadata, getRegistry } from '@substrate/txwrapper-polkadot'
 import { WsProvider } from '@polkadot/api'
 import { Metadata } from '@polkadot/types'
 import { hexToBn } from '@polkadot/util'
-import { Chain, Token, Rpc } from './model'
+import { GithubChain, NonFunctionPropertyNames } from './types'
+import { getOrCreate, sendWithTimeout, setUnhealthy, sortChains, updateDeprecatedFields } from './helpers'
+import { Chain, Token, Rpc, Rates } from './model'
 
 const processor = new SubstrateProcessor('chaindata')
 
@@ -13,13 +15,29 @@ const skipBlocksOlderThan = 300_000 // 300_000ms = 300 seconds = skip execution 
 const githubChaindataUrl = 'https://raw.githubusercontent.com/TalismanSociety/chaindata/main/chaindata.json'
 const githubTestnetsChaindataUrl =
     'https://raw.githubusercontent.com/TalismanSociety/chaindata/main/testnets-chaindata.json'
+const coingeckoApiUrl = 'https://api.coingecko.com/api/v3'
+const coingeckoCurrencies: Array<NonFunctionPropertyNames<Rates>> = [
+    'usd',
+    // 'aud',
+    // 'nzd',
+    // 'cud',
+    // 'hkd',
+    'eur',
+    // 'gbp',
+    // 'jpy',
+    // 'krw',
+    // 'cny',
+    // 'btc',
+    // 'eth',
+    // 'dot',
+]
 
 // chain is set to unhealthy if no RPC responds before this timeout
 const chainRpcTimeout = 120_000 // 120_000ms = 120 seconds = 2 minutes timeout on RPC requests
 
 processor.setTypesBundle('kusama')
 processor.setBatchSize(500)
-processor.setBlockRange({ from: 11_540_000 })
+processor.setBlockRange({ from: 11_830_500 })
 
 processor.setDataSource({
     archive: 'https://kusama.indexer.gc.subsquid.io/v4/graphql',
@@ -38,26 +56,39 @@ processor.addPostHook(async ({ block, store }) => {
 
     console.debug(`executing on block ${blockHeight}: block is recent and a multiple of ${numBlocksPerExecution}`)
 
-    // fetch github chaindata
-    const githubChaindataResponse = await axios.get(githubChaindataUrl)
-    const githubChaindata: GithubChain[] = githubChaindataResponse.data
+    //
+    //
+    // GITHUB -> DB
+    //
+    //
 
-    // fetch github testnet-chaindata
-    const githubTestnetsChaindataResponse = await axios.get(githubTestnetsChaindataUrl)
-    const githubTestnetsChaindata: GithubChain[] = githubTestnetsChaindataResponse.data.map((chain: GithubChain) => ({
-        ...chain,
-        isTestnet: true,
-    }))
+    // fetch chains from chaindata github repo
+    const githubChains: GithubChain[] = (
+        await Promise.all([
+            axios.get(githubChaindataUrl).then((response) => response.data),
+            axios
+                .get(githubTestnetsChaindataUrl)
+                .then((response) => response.data)
+                .then((data) => data.map((chain: GithubChain) => ({ ...chain, isTestnet: true }))),
+        ])
+    ).flatMap((chains) => chains)
 
-    for (const githubChain of [...githubChaindata, ...githubTestnetsChaindata]) {
+    const deleteChainIds = Object.fromEntries((await store.find(Chain)).map((chain) => [chain.id, true]))
+
+    // add github chains to the db
+    for (const githubChain of githubChains) {
+        // don't delete this chain
+        delete deleteChainIds[githubChain.id]
+
         const chain = await getOrCreate(store, Chain, githubChain.id)
         const relay = githubChain.relay?.id ? await getOrCreate(store, Chain, githubChain.relay.id) : null
 
         // only use githubChain value if db doesn't already have a value for this chain
         // values fetched via RPC will therefore take precedence
         if (!chain.prefix) chain.prefix = githubChain.prefix
-        if (!chain.token) chain.token = githubChain.token
-        if (!chain.decimals) chain.decimals = githubChain.decimals
+        if (!chain.nativeToken) chain.nativeToken = new Token()
+        if (!chain.nativeToken.token) chain.nativeToken.token = githubChain.token
+        if (!chain.nativeToken.decimals) chain.nativeToken.decimals = githubChain.decimals
 
         // set values
         chain.name = githubChain.name
@@ -76,27 +107,23 @@ processor.addPostHook(async ({ block, store }) => {
         await store.save(chain)
     }
 
+    // delete chains from db if they're no longer in github chaindata
+    if (Object.keys(deleteChainIds).length > 0) await store.delete(Chain, Object.keys(deleteChainIds))
+
+    //
+    //
+    // RPCS -> DB
+    //
+    //
+
     // fetch chains from db
     const chains = await store.find(Chain)
 
     // sort chains by id
-    chains.sort((a, b) => {
-        if (a.id === b.id) return 0
-        if (a.id === 'polkadot') return -1
-        if (b.id === 'polkadot') return 1
-        if (a.id === 'kusama') return -1
-        if (b.id === 'kusama') return 1
-        if (a.isTestnet !== b.isTestnet) {
-            if (a.isTestnet) return 1
-            if (b.isTestnet) return -1
-        }
-        return a.id.localeCompare(b.id)
-    })
+    const sortedChains = sortChains(chains)
 
     // prepare updates to each chain in parallel
-    const chainUpdates = chains.map(async (chain, sortIndex): Promise<Chain> => {
-        if (chain.sortIndex !== sortIndex) chain.sortIndex = sortIndex
-
+    const chainUpdates = sortedChains.map(async (chain): Promise<Chain> => {
         // can't be healthy if chain has no rpcs
         if (!chain.rpcs || chain.rpcs.length < 1) return setUnhealthy(chain)
 
@@ -167,7 +194,7 @@ processor.addPostHook(async ({ block, store }) => {
                 const metadata: Metadata = createMetadata(registry, metadataRpc)
 
                 const currencyIdDef = (metadata.asLatest.lookup?.types || []).find(
-                    ({ type }) => type.path.slice(-1).toString() === 'CurrencyId'
+                    ({ type }) => type.path.slice(-1).toString() === 'CurrencyId' && type?.def?.isVariant
                 )
                 const currencyIdVariants = (currencyIdDef?.type?.def?.asVariant?.variants.toJSON() || []) as Array<{
                     name: string
@@ -214,9 +241,10 @@ processor.addPostHook(async ({ block, store }) => {
                 chain.specVersion = specVersion
                 chain.genesisHash = genesisHash
                 chain.prefix = ss58Format
-                chain.token = Array.isArray(tokenSymbol) ? tokenSymbol[0] : tokenSymbol
-                chain.decimals = Array.isArray(tokenDecimals) ? tokenDecimals[0] : tokenDecimals
-                chain.existentialDeposit = existentialDeposit
+                if (!chain.nativeToken) chain.nativeToken = new Token()
+                chain.nativeToken.token = Array.isArray(tokenSymbol) ? tokenSymbol[0] : tokenSymbol
+                chain.nativeToken.decimals = Array.isArray(tokenDecimals) ? tokenDecimals[0] : tokenDecimals
+                chain.nativeToken.existentialDeposit = existentialDeposit
                 chain.tokensCurrencyIdIndex = tokensCurrencyIdIndex
                 chain.tokens = tokens.length > 0 ? tokens : null
                 chain.isHealthy = true
@@ -239,76 +267,103 @@ processor.addPostHook(async ({ block, store }) => {
 
     // store updated chains in db
     await store.save(chainsUpdated)
+
+    //
+    //
+    // COINGECKO -> DB
+    //
+    //
+
+    // get coingecko ids from github chaindata if specified
+    const coingeckoChains = await Promise.all(
+        githubChains.map(async (githubChain) => {
+            const chain = await getOrCreate(store, Chain, githubChain.id)
+
+            // always use coingeckoId from githubChain if it is set
+            if (!chain.nativeToken) chain.nativeToken = new Token()
+            chain.nativeToken.rates = null
+            chain.nativeToken.coingeckoId = githubChain.coingeckoId
+            ;(chain.tokens || []).forEach((token) => {
+                token.rates = null
+                if (token.token && githubChain.tokensCoingeckoIds) {
+                    token.coingeckoId = githubChain.tokensCoingeckoIds[token.token]
+                } else {
+                    token.coingeckoId = undefined
+                }
+            })
+
+            return chain
+        })
+    )
+
+    // get remaining coingecko ids from coingecko via token symbols
+    const coingeckoList: Array<{ id: string; symbol: string; name: string }> = await axios
+        .get(`${coingeckoApiUrl}/coins/list`)
+        .then((response) => response.data)
+    const coingeckoSymbolIndex = Object.fromEntries(
+        coingeckoList.reverse().map((coin) => [coin.symbol.toUpperCase(), coin])
+    )
+
+    const fetchCoingeckoIds = coingeckoChains
+        .flatMap((chain: Chain) => {
+            if (chain.isTestnet) return
+
+            if (chain.nativeToken && chain.nativeToken.token) {
+                if (chain.nativeToken.coingeckoId === undefined) {
+                    chain.nativeToken.coingeckoId = coingeckoSymbolIndex[chain.nativeToken.token.toUpperCase()]?.id
+                }
+            }
+
+            const ormlTokensCoingeckoIds = (chain.tokens || []).map((token) => {
+                if (!token.token) return
+                if (token.coingeckoId !== undefined) return token.coingeckoId
+
+                token.coingeckoId = coingeckoSymbolIndex[token.token.toUpperCase()]?.id
+                return token.coingeckoId
+            })
+
+            return [chain.nativeToken?.coingeckoId, ...ormlTokensCoingeckoIds]
+        })
+        .filter(Boolean)
+
+    const fetchCoingeckoIdsSerialized = fetchCoingeckoIds.join(',')
+    const coingeckoCurrenciesSerialized = coingeckoCurrencies.join(',')
+    const coingeckoPrices: Record<string, Record<string, number>> = await axios
+        .get(
+            `${coingeckoApiUrl}/simple/price?ids=${fetchCoingeckoIdsSerialized}&vs_currencies=${coingeckoCurrenciesSerialized}`
+        )
+        .then((response) => response.data)
+
+    coingeckoChains.forEach((chain: Chain) => {
+        if (chain.nativeToken && chain.nativeToken.coingeckoId) {
+            chain.nativeToken.rates = new Rates()
+
+            const rates = coingeckoPrices[chain.nativeToken.coingeckoId]
+            if (rates) {
+                for (const currency of coingeckoCurrencies) {
+                    chain.nativeToken.rates[currency] = rates[currency]
+                }
+            }
+        }
+        ;(chain.tokens || []).map((token) => {
+            if (!token.coingeckoId) return
+            token.rates = new Rates()
+
+            const rates = coingeckoPrices[token.coingeckoId]
+            if (rates) {
+                for (const currency of coingeckoCurrencies) {
+                    token.rates[currency] = rates[currency]
+                }
+            }
+        })
+    })
+
+    // update deprecated fields e.g. `chain.token = chain.nativeToken.token`
+    await store.save(updateDeprecatedFields(coingeckoChains))
 })
 
 // indexer breaks if we don't subscribe to at least one type of event in addition to the postBlock hook
 processor.addEventHandler('balances.Transfer', async () => {})
 
+// run the processor on start
 processor.run()
-
-async function getOrCreate<T extends { id: string }>(
-    store: Store,
-    entityConstructor: EntityConstructor<T>,
-    id: string
-): Promise<T> {
-    let e = await store.get<T>(entityConstructor, {
-        where: { id },
-    })
-
-    if (e == null) {
-        e = new entityConstructor()
-        e.id = id
-    }
-
-    return e
-}
-
-type EntityConstructor<T> = {
-    new (...args: any[]): T
-}
-
-const setUnhealthy = (chain: Chain): Chain => {
-    chain.isHealthy = false
-    chain.rpcs.forEach((rpc) => (rpc.isHealthy = false))
-    return chain
-}
-
-type GithubChain = {
-    id: string
-    isTestnet?: true
-    prefix?: number | null
-    name?: string | null
-    token?: string | null
-    decimals?: number | null
-    account?: string | null
-    subscanUrl?: string | null
-    rpcs?: string[] | null
-    paraId?: number | null
-    relay?: { id: string } | null
-}
-
-const sendWithTimeout = (socket: WsProvider, requests: Array<[string, any?]>, timeout: number): Promise<any[]> => {
-    return new Promise(async (_resolve, _reject) => {
-        let done = false
-        const resolve = (value: any[]) => {
-            done = true
-            _resolve(value)
-        }
-        const reject = (reason?: any) => {
-            done = true
-            _reject(reason)
-        }
-
-        if (socket === null) return reject('no socket')
-        socket.on('error', () => reject('socket error'))
-
-        setTimeout(() => !done && reject('timeout'), timeout)
-
-        await socket.connect()
-        await socket.isReady
-
-        const results = await Promise.all(requests.map(([method, params = []]) => socket.send(method, params)))
-
-        resolve(results)
-    })
-}
