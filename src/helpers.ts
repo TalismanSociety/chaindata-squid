@@ -1,6 +1,6 @@
+import { Chain } from './model'
 import { Store } from '@subsquid/substrate-processor'
 import { WsProvider } from '@polkadot/api'
-import { Chain } from './model'
 
 export async function getOrCreate<T extends { id: string }>(
   store: Store,

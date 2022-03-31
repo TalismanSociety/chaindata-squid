@@ -41,14 +41,6 @@
   "prettier": {
     "printWidth": 120,
     "semi": false,
-    "singleQuote": true,
-    "overrides": [
-      {
-        "files": "processor.ts",
-        "options": {
-          "tabWidth": 4
-        }
-      }
-    ]
+    "singleQuote": true
   }
 }
