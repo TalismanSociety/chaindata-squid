@@ -3,6 +3,7 @@ import * as marshal from "./marshal"
 import {Rates} from "./_rates"
 
 export class Token {
+  private _id!: string
   private _index!: number | undefined | null
   private _token!: string | undefined | null
   private _decimals!: number | undefined | null
@@ -13,6 +14,7 @@ export class Token {
   constructor(props?: Partial<Omit<Token, 'toJSON'>>, json?: any) {
     Object.assign(this, props)
     if (json != null) {
+      this._id = marshal.id.fromJSON(json.id)
       this._index = json.index == null ? undefined : marshal.int.fromJSON(json.index)
       this._token = json.token == null ? undefined : marshal.string.fromJSON(json.token)
       this._decimals = json.decimals == null ? undefined : marshal.int.fromJSON(json.decimals)
@@ -20,6 +22,18 @@ export class Token {
       this._coingeckoId = json.coingeckoId == null ? undefined : marshal.string.fromJSON(json.coingeckoId)
       this._rates = json.rates == null ? undefined : new Rates(undefined, json.rates)
     }
+  }
+
+  /**
+   * talisman-defined id for this token
+   */
+  get id(): string {
+    assert(this._id != null, 'uninitialized access')
+    return this._id
+  }
+
+  set id(value: string) {
+    this._id = value
   }
 
   /**
@@ -90,6 +104,7 @@ export class Token {
 
   toJSON(): object {
     return {
+      id: this.id,
       index: this.index,
       token: this.token,
       decimals: this.decimals,

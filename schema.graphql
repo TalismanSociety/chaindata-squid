@@ -76,6 +76,9 @@ type Chain @entity {
 }
 
 type Token {
+  "talisman-defined id for this token"
+  id: ID!
+
   "the on-chain TokenSymbol index of this token"
   index: Int
 

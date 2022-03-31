@@ -38,7 +38,7 @@ const chainRpcTimeout = 120_000 // 120_000ms = 120 seconds = 2 minutes timeout o
 
 processor.setTypesBundle('kusama')
 processor.setBatchSize(500)
-processor.setBlockRange({ from: 11_830_500 })
+processor.setBlockRange({ from: 12_054_000 })
 
 processor.setDataSource({
   archive: 'https://kusama.indexer.gc.subsquid.io/v4/graphql',
@@ -90,6 +90,7 @@ processor.addPostHook(async ({ block, store }) => {
     if (!chain.nativeToken) chain.nativeToken = new Token()
     if (!chain.nativeToken.token) chain.nativeToken.token = githubChain.token
     if (!chain.nativeToken.decimals) chain.nativeToken.decimals = githubChain.decimals
+    chain.nativeToken.id = `${chain.id}-native-${chain.nativeToken}`
 
     // set values
     chain.name = githubChain.name
@@ -217,6 +218,7 @@ processor.addPostHook(async ({ block, store }) => {
           const tokens = Array.isArray(tokenSymbol)
             ? tokenSymbol
                 .map((symbol: string, index: number) => ({
+                  id: `${chain.id}-orml-${symbol}`,
                   index: tokenIndexLookup[symbol],
                   token: symbol,
                   decimals: tokenDecimals[index],
@@ -247,6 +249,7 @@ processor.addPostHook(async ({ block, store }) => {
           chain.nativeToken.token = Array.isArray(tokenSymbol) ? tokenSymbol[0] : tokenSymbol
           chain.nativeToken.decimals = Array.isArray(tokenDecimals) ? tokenDecimals[0] : tokenDecimals
           chain.nativeToken.existentialDeposit = existentialDeposit
+          chain.nativeToken.id = `${chain.id}-native-${chain.nativeToken.token}`
           chain.tokensCurrencyIdIndex = tokensCurrencyIdIndex
           chain.tokens = tokens.length > 0 ? tokens : null
           chain.isHealthy = true
