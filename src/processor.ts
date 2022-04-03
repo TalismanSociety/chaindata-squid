@@ -90,7 +90,7 @@ processor.addPostHook(async ({ block, store }) => {
     if (!chain.nativeToken) chain.nativeToken = new Token()
     if (!chain.nativeToken.token) chain.nativeToken.token = githubChain.token
     if (!chain.nativeToken.decimals) chain.nativeToken.decimals = githubChain.decimals
-    chain.nativeToken.id = `${chain.id}-native-${chain.nativeToken}`
+    chain.nativeToken.id = `${chain.id}-native-${chain.nativeToken.token}`
 
     // set values
     chain.name = githubChain.name
