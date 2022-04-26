@@ -38,7 +38,7 @@ const coingeckoCurrencies: Array<NonFunctionPropertyNames<Rates>> = [
 const chainRpcTimeout = 120_000 // 120_000ms = 120 seconds = 2 minutes timeout on RPC requests
 
 processor.setBatchSize(500)
-processor.setBlockRange({ from: 10_000_000 })
+processor.setBlockRange({ from: 10_030_000 })
 processor.setDataSource({
   chain: 'wss://rpc.polkadot.io',
   archive: lookupArchive('polkadot')[0].url,
