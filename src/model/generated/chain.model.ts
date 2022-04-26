@@ -3,6 +3,7 @@ import * as marshal from "./marshal"
 import {Token} from "./_token"
 import {Rates} from "./_rates"
 import {Rpc} from "./_rpc"
+import {EthereumRpc} from "./_ethereumRpc"
 
 @Entity_()
 export class Chain {
@@ -77,7 +78,7 @@ export class Chain {
   nativeToken!: Token | undefined | null
 
   /**
-   * native token symbol for this chain - deprecated: use chain.nativeToken.token
+   * native token symbol for this chain - deprecated: use chain.nativeToken.symbol
    */
   @Column_("text", {nullable: true})
   token!: string | undefined | null
@@ -135,6 +136,24 @@ export class Chain {
    */
   @Column_("jsonb", {transformer: {to: obj => obj.map((val: any) => val.toJSON()), from: obj => marshal.fromList(obj, val => new Rpc(undefined, marshal.nonNull(val)))}, nullable: false})
   rpcs!: (Rpc)[]
+
+  /**
+   * ethereum block explorer url for this chain
+   */
+  @Column_("text", {nullable: true})
+  ethereumExplorerUrl!: string | undefined | null
+
+  /**
+   * talisman-defined ethereum rpcs for this chain
+   */
+  @Column_("jsonb", {transformer: {to: obj => obj.map((val: any) => val.toJSON()), from: obj => marshal.fromList(obj, val => new EthereumRpc(undefined, marshal.nonNull(val)))}, nullable: false})
+  ethereumRpcs!: (EthereumRpc)[]
+
+  /**
+   * the chain identifier used for signing ethereum transactions
+   */
+  @Column_("integer", {nullable: true})
+  ethereumId!: number | undefined | null
 
   /**
    * health status of this chain

@@ -32,8 +32,8 @@ type Chain @entity {
   "native token for this chain"
   nativeToken: Token
 
-  "native token symbol for this chain - deprecated: use chain.nativeToken.token"
-  token: String @deprecated(reason: "use chain.nativeToken.token")
+  "native token symbol for this chain - deprecated: use chain.nativeToken.symbol"
+  token: String @deprecated(reason: "use chain.nativeToken.symbol")
 
   "native token decimals for this chain - deprecated: use chain.nativeToken.decimals"
   decimals: Int @deprecated(reason: "use chain.nativeToken.decimals")
@@ -62,6 +62,15 @@ type Chain @entity {
   "talisman-defined rpcs for this chain"
   rpcs: [Rpc!]!
 
+  "ethereum block explorer url for this chain"
+  ethereumExplorerUrl: String
+
+  "talisman-defined ethereum rpcs for this chain"
+  ethereumRpcs: [EthereumRpc!]!
+
+  "the chain identifier used for signing ethereum transactions"
+  ethereumId: Int
+
   "health status of this chain"
   isHealthy: Boolean!
 
@@ -82,8 +91,11 @@ type Token {
   "the on-chain TokenSymbol index of this token"
   index: Int
 
+  "token symbol - deprecated: use token.symbol"
+  token: String @deprecated(reason: "use token.symbol")
+
   "token symbol"
-  token: String
+  symbol: String
 
   "token decimals"
   decimals: Int
@@ -144,5 +156,13 @@ type Rpc {
   url: String!
 
   "health status of this rpc"
+  isHealthy: Boolean!
+}
+
+type EthereumRpc {
+  "url of this ethereum rpc"
+  url: String!
+
+  "health status of this ethereum rpc"
   isHealthy: Boolean!
 }

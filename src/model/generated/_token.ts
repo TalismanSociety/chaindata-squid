@@ -6,6 +6,7 @@ export class Token {
   private _id!: string
   private _index!: number | undefined | null
   private _token!: string | undefined | null
+  private _symbol!: string | undefined | null
   private _decimals!: number | undefined | null
   private _existentialDeposit!: string | undefined | null
   private _coingeckoId!: string | undefined | null
@@ -17,6 +18,7 @@ export class Token {
       this._id = marshal.id.fromJSON(json.id)
       this._index = json.index == null ? undefined : marshal.int.fromJSON(json.index)
       this._token = json.token == null ? undefined : marshal.string.fromJSON(json.token)
+      this._symbol = json.symbol == null ? undefined : marshal.string.fromJSON(json.symbol)
       this._decimals = json.decimals == null ? undefined : marshal.int.fromJSON(json.decimals)
       this._existentialDeposit = json.existentialDeposit == null ? undefined : marshal.string.fromJSON(json.existentialDeposit)
       this._coingeckoId = json.coingeckoId == null ? undefined : marshal.string.fromJSON(json.coingeckoId)
@@ -48,7 +50,7 @@ export class Token {
   }
 
   /**
-   * token symbol
+   * token symbol - deprecated: use token.symbol
    */
   get token(): string | undefined | null {
     return this._token
@@ -56,6 +58,17 @@ export class Token {
 
   set token(value: string | undefined | null) {
     this._token = value
+  }
+
+  /**
+   * token symbol
+   */
+  get symbol(): string | undefined | null {
+    return this._symbol
+  }
+
+  set symbol(value: string | undefined | null) {
+    this._symbol = value
   }
 
   /**
@@ -107,6 +120,7 @@ export class Token {
       id: this.id,
       index: this.index,
       token: this.token,
+      symbol: this.symbol,
       decimals: this.decimals,
       existentialDeposit: this.existentialDeposit,
       coingeckoId: this.coingeckoId,

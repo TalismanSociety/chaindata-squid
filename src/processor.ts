@@ -1,13 +1,13 @@
-import { Chain, Rates, Rpc, Token } from './model'
-import { GithubChain, NonFunctionPropertyNames } from './types'
-import { createMetadata, getRegistry } from '@substrate/txwrapper-polkadot'
-import { getOrCreate, sendWithTimeout, setUnhealthy, sortChains, updateDeprecatedFields } from './helpers'
-
-import { Metadata } from '@polkadot/types'
-import { SubstrateProcessor } from '@subsquid/substrate-processor'
 import { WsProvider } from '@polkadot/api'
-import axios from 'axios'
+import { Metadata } from '@polkadot/types'
 import { hexToBn } from '@polkadot/util'
+import { SubstrateProcessor } from '@subsquid/substrate-processor'
+import { createMetadata, getRegistry } from '@substrate/txwrapper-polkadot'
+import axios from 'axios'
+
+import { getOrCreate, sendWithTimeout, setUnhealthy, sortChains, updateDeprecatedFields } from './helpers'
+import { Chain, EthereumRpc, Rates, Rpc, Token } from './model'
+import { GithubChain, NonFunctionPropertyNames } from './types'
 
 const processor = new SubstrateProcessor('chaindata')
 
@@ -38,7 +38,7 @@ const chainRpcTimeout = 120_000 // 120_000ms = 120 seconds = 2 minutes timeout o
 
 processor.setTypesBundle('kusama')
 processor.setBatchSize(500)
-processor.setBlockRange({ from: 12_054_000 })
+processor.setBlockRange({ from: 12_410_000 })
 
 processor.setDataSource({
   archive: 'https://kusama.indexer.gc.subsquid.io/v4/graphql',
@@ -88,15 +88,18 @@ processor.addPostHook(async ({ block, store }) => {
     // values fetched via RPC will therefore take precedence
     if (!chain.prefix) chain.prefix = githubChain.prefix
     if (!chain.nativeToken) chain.nativeToken = new Token()
-    if (!chain.nativeToken.token) chain.nativeToken.token = githubChain.token
+    if (!chain.nativeToken.symbol) chain.nativeToken.symbol = githubChain.token
+    chain.nativeToken.token = chain.nativeToken.symbol
     if (!chain.nativeToken.decimals) chain.nativeToken.decimals = githubChain.decimals
-    chain.nativeToken.id = `${chain.id}-native-${chain.nativeToken.token}`
+    chain.nativeToken.id = `${chain.id}-native-${chain.nativeToken.symbol}`
 
     // set values
     chain.name = githubChain.name
     chain.account = githubChain.account
     chain.subscanUrl = githubChain.subscanUrl
     chain.rpcs = (githubChain.rpcs || []).map((url) => new Rpc({ url, isHealthy: false }))
+    chain.ethereumExplorerUrl = githubChain.ethereumExplorerUrl
+    chain.ethereumRpcs = (githubChain.ethereumRpcs || []).map((url) => new EthereumRpc({ url, isHealthy: false }))
     chain.isTestnet = githubChain.isTestnet || false
 
     // only set relay and paraId if both exist on githubChain
@@ -125,148 +128,194 @@ processor.addPostHook(async ({ block, store }) => {
   const sortedChains = sortChains(chains)
 
   // prepare updates to each chain in parallel
-  const chainUpdates = sortedChains.map(
-    async (chain): Promise<Chain> => {
-      // can't be healthy if chain has no rpcs
-      if (!chain.rpcs || chain.rpcs.length < 1) return setUnhealthy(chain)
+  const chainUpdates = sortedChains.map(async (chain): Promise<Chain> => {
+    // can't be healthy if chain has no rpcs
+    if (!chain.rpcs || chain.rpcs.length < 1) return setUnhealthy(chain)
 
-      // get health status of rpcs
-      await Promise.all(
-        Object.values(chain.rpcs).map(async (rpc) => {
-          // try to connect to rpc
-          let socket: WsProvider | null = null
-          try {
-            socket = new WsProvider(rpc.url, 0, {
-              // our extension will send this header with every request
-              // some RPCs reject this header, in which case we want to set isHealthy to false
-              Origin: 'chrome-extension://abpofhpcakjhnpklgodncneklaobppdc',
-            })
-
-            // fetch genesis hash
-            await sendWithTimeout(socket, [['chain_getBlockHash', [0]]], chainRpcTimeout)
-
-            // set healthy
-            rpc.isHealthy = true
-          } catch (error) {
-            // set unhealthy
-            rpc.isHealthy = false
-          } finally {
-            socket !== null && socket.disconnect()
-          }
-        })
-      )
-
-      // set chain unhealthy if there is no healthy rpcs
-      const healthyChainRpcUrls = chain.rpcs.filter(({ isHealthy }) => isHealthy).map(({ url }) => url)
-      if (healthyChainRpcUrls.length < 1) return setUnhealthy(chain)
-
-      // fetch chaindata from rpc
-      const maxAttempts = healthyChainRpcUrls.length * 2
-      for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-        // try to connect to chain
+    // get health status of rpcs
+    await Promise.all(
+      Object.values(chain.rpcs).map(async (rpc) => {
+        // try to connect to rpc
         let socket: WsProvider | null = null
         try {
-          socket = new WsProvider(healthyChainRpcUrls[(attempt - 1) % healthyChainRpcUrls.length], 0, {
+          socket = new WsProvider(rpc.url, 0, {
             // our extension will send this header with every request
             // some RPCs reject this header, in which case we want to set isHealthy to false
             Origin: 'chrome-extension://abpofhpcakjhnpklgodncneklaobppdc',
           })
 
-          // fetch rpc data
-          const [genesisHash, runtimeVersion, metadataRpc, chainName, chainProperties] = await sendWithTimeout(
-            socket,
-            [
-              ['chain_getBlockHash', [0]],
-              ['state_getRuntimeVersion', []],
-              ['state_getMetadata', []],
-              ['system_chain', []],
-              ['system_properties', []],
-            ],
-            chainRpcTimeout
-          )
+          // fetch genesis hash
+          await sendWithTimeout(socket, [['chain_getBlockHash', [0]]], chainRpcTimeout)
 
-          // deconstruct rpc data
-          const { specName, specVersion, implName } = runtimeVersion
-          const { ss58Format, tokenDecimals, tokenSymbol } = chainProperties
-          const registry = getRegistry({
-            specName,
-            specVersion,
-            metadataRpc,
-            chainName,
-          })
-          const metadata: Metadata = createMetadata(registry, metadataRpc)
-
-          const currencyIdDef = (metadata.asLatest.lookup?.types || []).find(
-            ({ type }) => type.path.slice(-1).toString() === 'CurrencyId' && type?.def?.isVariant
-          )
-          const currencyIdVariants = (currencyIdDef?.type?.def?.asVariant?.variants.toJSON() || []) as Array<{
-            name: string
-            index: number
-          }>
-          const currencyIdLookup = Object.fromEntries(currencyIdVariants.map(({ name, index }) => [name, index]))
-          const tokensCurrencyIdIndex = currencyIdLookup['Token']
-
-          const tokenSymbolDef = (metadata.asLatest.lookup?.types || []).find(
-            ({ type }) => type.path.slice(-1).toString() === 'TokenSymbol'
-          )
-          const tokenSymbolVariants = (tokenSymbolDef?.type?.def?.asVariant?.variants.toJSON() || []) as Array<{
-            name: string
-            index: number
-          }>
-          const tokenIndexLookup = Object.fromEntries(tokenSymbolVariants.map(({ name, index }) => [name, index]))
-
-          const tokens = Array.isArray(tokenSymbol)
-            ? tokenSymbol
-                .map((symbol: string, index: number) => ({
-                  id: `${chain.id}-orml-${symbol}`,
-                  index: tokenIndexLookup[symbol],
-                  token: symbol,
-                  decimals: tokenDecimals[index],
-                }))
-                .filter(({ index }) => index !== undefined)
-                .map((token) => new Token(token))
-            : []
-          tokens.sort((a, b) => (a?.index || 0) - (b?.index || 0))
-
-          const existentialDepositCodec = metadata.asLatest.pallets
-            .find((pallet: any) => pallet.name.eq('Balances'))
-            ?.constants.find((constant: any) => constant.name.eq('ExistentialDeposit'))?.value
-          const existentialDeposit = existentialDepositCodec
-            ? hexToBn(existentialDepositCodec.toHex(), {
-                isLe: true,
-                isNegative: false,
-              }).toString()
-            : null
-
-          // set values
-          chain.chainName = chainName
-          chain.implName = implName
-          chain.specName = specName
-          chain.specVersion = specVersion
-          chain.genesisHash = genesisHash
-          chain.prefix = ss58Format
-          if (!chain.nativeToken) chain.nativeToken = new Token()
-          chain.nativeToken.token = Array.isArray(tokenSymbol) ? tokenSymbol[0] : tokenSymbol
-          chain.nativeToken.decimals = Array.isArray(tokenDecimals) ? tokenDecimals[0] : tokenDecimals
-          chain.nativeToken.existentialDeposit = existentialDeposit
-          chain.nativeToken.id = `${chain.id}-native-${chain.nativeToken.token}`
-          chain.tokensCurrencyIdIndex = tokensCurrencyIdIndex
-          chain.tokens = tokens.length > 0 ? tokens : null
-          chain.isHealthy = true
-
-          return chain
+          // set healthy
+          rpc.isHealthy = true
         } catch (error) {
-          console.warn(chain.id, `attempt ${attempt} failed`, error)
+          // set unhealthy
+          rpc.isHealthy = false
         } finally {
           socket !== null && socket.disconnect()
         }
-      }
+      })
+    )
 
-      // ran out of attempts
-      console.warn(chain.id, `all attempts (${maxAttempts}) failed`)
-      return setUnhealthy(chain)
+    // get health status of ethereum rpcs
+    const ethereumIds = await Promise.all(
+      Object.values(chain.ethereumRpcs).map(async (rpc) => {
+        // try to connect to rpc
+        try {
+          const response = await axios.post(
+            rpc.url,
+            JSON.stringify({ method: 'eth_chainId', params: [], id: 1, jsonrpc: '2.0' }),
+            {
+              headers: {
+                'Content-Type': 'application/json',
+                // our extension will send this header with every request
+                // some RPCs reject this header, in which case we want to set isHealthy to false
+                Origin: 'chrome-extension://abpofhpcakjhnpklgodncneklaobppdc',
+              },
+            }
+          )
+
+          // check response status
+          if (response.status !== 200) throw new Error(`Non-200 response status (${response.status}) from ethereum rpc`)
+
+          // set healthy
+          rpc.isHealthy = true
+          return parseInt(response.data.result)
+        } catch (error) {
+          // set unhealthy
+          rpc.isHealthy = false
+          return null
+        }
+      })
+    )
+
+    // set ethereumId on chain
+    if (ethereumIds.length > 0) {
+      // set chain ethereumId to the first healthy rpc's ethereumId
+      chain.ethereumId = ethereumIds.filter((id): id is number => id !== null)[0]
+
+      // set any rpcs with a different ethereumId to unhealthy
+      ethereumIds.forEach((id, rpcIndex) => {
+        if (id === chain.ethereumId) return
+        ;(chain.rpcs[rpcIndex] || {}).isHealthy = false
+      })
+    } else {
+      chain.ethereumId = undefined
     }
-  )
+
+    // set chain unhealthy if there is no healthy rpcs
+    const healthyChainRpcUrls = chain.rpcs.filter(({ isHealthy }) => isHealthy).map(({ url }) => url)
+    if (healthyChainRpcUrls.length < 1) return setUnhealthy(chain)
+
+    // fetch chaindata from rpc
+    const maxAttempts = healthyChainRpcUrls.length * 2
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      // try to connect to chain
+      let socket: WsProvider | null = null
+      try {
+        socket = new WsProvider(healthyChainRpcUrls[(attempt - 1) % healthyChainRpcUrls.length], 0, {
+          // our extension will send this header with every request
+          // some RPCs reject this header, in which case we want to set isHealthy to false
+          Origin: 'chrome-extension://abpofhpcakjhnpklgodncneklaobppdc',
+        })
+
+        // fetch rpc data
+        const [genesisHash, runtimeVersion, metadataRpc, chainName, chainProperties] = await sendWithTimeout(
+          socket,
+          [
+            ['chain_getBlockHash', [0]],
+            ['state_getRuntimeVersion', []],
+            ['state_getMetadata', []],
+            ['system_chain', []],
+            ['system_properties', []],
+          ],
+          chainRpcTimeout
+        )
+
+        // deconstruct rpc data
+        const { specName, specVersion, implName } = runtimeVersion
+        const { ss58Format, tokenDecimals, tokenSymbol } = chainProperties
+        const registry = getRegistry({
+          specName,
+          specVersion,
+          metadataRpc,
+          chainName,
+        })
+        const metadata: Metadata = createMetadata(registry, metadataRpc)
+
+        const currencyIdDef = (metadata.asLatest.lookup?.types || []).find(
+          ({ type }) => type.path.slice(-1).toString() === 'CurrencyId' && type?.def?.isVariant
+        )
+        const currencyIdVariants = (currencyIdDef?.type?.def?.asVariant?.variants.toJSON() || []) as Array<{
+          name: string
+          index: number
+        }>
+        const currencyIdLookup = Object.fromEntries(currencyIdVariants.map(({ name, index }) => [name, index]))
+        const tokensCurrencyIdIndex = currencyIdLookup['Token']
+
+        const tokenSymbolDef = (metadata.asLatest.lookup?.types || []).find(
+          ({ type }) => type.path.slice(-1).toString() === 'TokenSymbol'
+        )
+        const tokenSymbolVariants = (tokenSymbolDef?.type?.def?.asVariant?.variants.toJSON() || []) as Array<{
+          name: string
+          index: number
+        }>
+        const tokenIndexLookup = Object.fromEntries(tokenSymbolVariants.map(({ name, index }) => [name, index]))
+
+        const tokens = Array.isArray(tokenSymbol)
+          ? tokenSymbol
+              .map((symbol: string, index: number) => ({
+                id: `${chain.id}-orml-${symbol}`,
+                index: tokenIndexLookup[symbol],
+                token: symbol,
+                symbol,
+                decimals: tokenDecimals[index],
+              }))
+              .filter(({ index }) => index !== undefined)
+              .map((token) => new Token(token))
+          : []
+        tokens.sort((a, b) => (a?.index || 0) - (b?.index || 0))
+
+        const existentialDepositCodec = metadata.asLatest.pallets
+          .find((pallet: any) => pallet.name.eq('Balances'))
+          ?.constants.find((constant: any) => constant.name.eq('ExistentialDeposit'))?.value
+        const existentialDeposit = existentialDepositCodec
+          ? hexToBn(existentialDepositCodec.toHex(), {
+              isLe: true,
+              isNegative: false,
+            }).toString()
+          : null
+
+        // set values
+        chain.chainName = chainName
+        chain.implName = implName
+        chain.specName = specName
+        chain.specVersion = specVersion
+        chain.genesisHash = genesisHash
+        chain.prefix = ss58Format
+        if (!chain.nativeToken) chain.nativeToken = new Token()
+        chain.nativeToken.symbol = Array.isArray(tokenSymbol) ? tokenSymbol[0] : tokenSymbol
+        chain.nativeToken.token = chain.nativeToken.symbol
+        chain.nativeToken.decimals = Array.isArray(tokenDecimals) ? tokenDecimals[0] : tokenDecimals
+        chain.nativeToken.existentialDeposit = existentialDeposit
+        chain.nativeToken.id = `${chain.id}-native-${chain.nativeToken.symbol}`
+        chain.tokensCurrencyIdIndex = tokensCurrencyIdIndex
+        chain.tokens = tokens.length > 0 ? tokens : null
+        chain.isHealthy = true
+
+        return chain
+      } catch (error) {
+        console.warn(chain.id, `attempt ${attempt} failed`, error)
+      } finally {
+        socket !== null && socket.disconnect()
+      }
+    }
+
+    // ran out of attempts
+    console.warn(chain.id, `all attempts (${maxAttempts}) failed`)
+    return setUnhealthy(chain)
+  })
 
   // wait for all chains to be updated
   const chainsUpdated = await Promise.all(chainUpdates)
@@ -291,8 +340,8 @@ processor.addPostHook(async ({ block, store }) => {
       chain.nativeToken.coingeckoId = githubChain.coingeckoId
       ;(chain.tokens || []).forEach((token) => {
         token.rates = null
-        if (token.token && githubChain.tokensCoingeckoIds) {
-          token.coingeckoId = githubChain.tokensCoingeckoIds[token.token]
+        if (token.symbol && githubChain.tokensCoingeckoIds) {
+          token.coingeckoId = githubChain.tokensCoingeckoIds[token.symbol]
         } else {
           token.coingeckoId = undefined
         }
@@ -314,17 +363,17 @@ processor.addPostHook(async ({ block, store }) => {
     .flatMap((chain: Chain) => {
       if (chain.isTestnet) return
 
-      if (chain.nativeToken && chain.nativeToken.token) {
+      if (chain.nativeToken && chain.nativeToken.symbol) {
         if (chain.nativeToken.coingeckoId === undefined) {
-          chain.nativeToken.coingeckoId = coingeckoSymbolIndex[chain.nativeToken.token.toUpperCase()]?.id
+          chain.nativeToken.coingeckoId = coingeckoSymbolIndex[chain.nativeToken.symbol.toUpperCase()]?.id
         }
       }
 
       const ormlTokensCoingeckoIds = (chain.tokens || []).map((token) => {
-        if (!token.token) return
+        if (!token.symbol) return
         if (token.coingeckoId !== undefined) return token.coingeckoId
 
-        token.coingeckoId = coingeckoSymbolIndex[token.token.toUpperCase()]?.id
+        token.coingeckoId = coingeckoSymbolIndex[token.symbol.toUpperCase()]?.id
         return token.coingeckoId
       })
 

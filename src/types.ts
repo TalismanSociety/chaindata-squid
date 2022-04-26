@@ -10,6 +10,8 @@ export type GithubChain = {
   account?: string
   subscanUrl?: string
   rpcs?: string[]
+  ethereumExplorerUrl?: string
+  ethereumRpcs?: string[]
   paraId?: number
   relay?: { id: string }
 }
