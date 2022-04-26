@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "@polkadot/api": "^7.3.1",
+    "@subsquid/archive-registry": "^0.0.6",
     "@subsquid/cli": "^0.1.2",
     "@subsquid/graphql-server": "^0.1.4",
     "@subsquid/ss58": "^0.0.4",

@@ -1,6 +1,7 @@
 import { WsProvider } from '@polkadot/api'
 import { Metadata } from '@polkadot/types'
 import { hexToBn } from '@polkadot/util'
+import { lookupArchive } from '@subsquid/archive-registry'
 import { SubstrateProcessor } from '@subsquid/substrate-processor'
 import { createMetadata, getRegistry } from '@substrate/txwrapper-polkadot'
 import axios from 'axios'
@@ -36,13 +37,11 @@ const coingeckoCurrencies: Array<NonFunctionPropertyNames<Rates>> = [
 // chain is set to unhealthy if no RPC responds before this timeout
 const chainRpcTimeout = 120_000 // 120_000ms = 120 seconds = 2 minutes timeout on RPC requests
 
-processor.setTypesBundle('kusama')
 processor.setBatchSize(500)
-processor.setBlockRange({ from: 12_410_000 })
-
+processor.setBlockRange({ from: 10_000_000 })
 processor.setDataSource({
-  archive: 'https://kusama.indexer.gc.subsquid.io/v4/graphql',
-  chain: 'wss://kusama-rpc.polkadot.io',
+  chain: 'wss://rpc.polkadot.io',
+  archive: lookupArchive('polkadot')[0].url,
 })
 
 processor.addPostHook(async ({ block, store }) => {
