@@ -71,6 +71,9 @@ type Chain @entity {
   "the chain identifier used for signing ethereum transactions"
   ethereumId: Int
 
+  "the recommended miner incentive to offer based on low, medium or high evm transaction priority"
+  ethereumMaxGasPriorityFees: MaxGasPriorityFees
+
   "health status of this chain"
   isHealthy: Boolean!
 
@@ -165,4 +168,15 @@ type EthereumRpc {
 
   "health status of this ethereum rpc"
   isHealthy: Boolean!
+}
+
+type MaxGasPriorityFees {
+  "the recommended max priority fee for low priority transactions - wei/planck units"
+  low: String!
+
+  "the recommended max gas priority fee for normal priority transactions - wei/planck units"
+  normal: String!
+
+  "the recommended max gas priority fee for high priority transactions - wei/planck units"
+  high: String!
 }

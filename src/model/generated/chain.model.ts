@@ -4,6 +4,7 @@ import {Token} from "./_token"
 import {Rates} from "./_rates"
 import {Rpc} from "./_rpc"
 import {EthereumRpc} from "./_ethereumRpc"
+import {MaxGasPriorityFees} from "./_maxGasPriorityFees"
 
 @Entity_()
 export class Chain {
@@ -154,6 +155,12 @@ export class Chain {
    */
   @Column_("integer", {nullable: true})
   ethereumId!: number | undefined | null
+
+  /**
+   * the recommended miner incentive to offer based on low, medium or high evm transaction priority
+   */
+  @Column_("jsonb", {transformer: {to: obj => obj == null ? undefined : obj.toJSON(), from: obj => obj == null ? undefined : new MaxGasPriorityFees(undefined, obj)}, nullable: true})
+  ethereumMaxGasPriorityFees!: MaxGasPriorityFees | undefined | null
 
   /**
    * health status of this chain

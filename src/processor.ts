@@ -6,7 +6,14 @@ import { SubstrateProcessor } from '@subsquid/substrate-processor'
 import { createMetadata, getRegistry } from '@substrate/txwrapper-polkadot'
 import axios from 'axios'
 
-import { getOrCreate, sendWithTimeout, setUnhealthy, sortChains, updateDeprecatedFields } from './helpers'
+import {
+  defaultMaxGasPriorityFees,
+  getOrCreate,
+  sendWithTimeout,
+  setUnhealthy,
+  sortChains,
+  updateDeprecatedFields,
+} from './helpers'
 import { Chain, EthereumRpc, Rates, Rpc, Token } from './model'
 import { GithubChain, NonFunctionPropertyNames } from './types'
 
@@ -38,7 +45,7 @@ const coingeckoCurrencies: Array<NonFunctionPropertyNames<Rates>> = [
 const chainRpcTimeout = 120_000 // 120_000ms = 120 seconds = 2 minutes timeout on RPC requests
 
 processor.setBatchSize(500)
-processor.setBlockRange({ from: 10_030_000 })
+processor.setBlockRange({ from: 10_160_000 })
 processor.setDataSource({
   chain: 'wss://rpc.polkadot.io',
   archive: lookupArchive('polkadot')[0].url,
@@ -99,6 +106,14 @@ processor.addPostHook(async ({ block, store }) => {
     chain.rpcs = (githubChain.rpcs || []).map((url) => new Rpc({ url, isHealthy: false }))
     chain.ethereumExplorerUrl = githubChain.ethereumExplorerUrl
     chain.ethereumRpcs = (githubChain.ethereumRpcs || []).map((url) => new EthereumRpc({ url, isHealthy: false }))
+    chain.ethereumMaxGasPriorityFees =
+      (githubChain.ethereumRpcs || []).length > 0
+        ? defaultMaxGasPriorityFees({
+            low: githubChain.ethereumMaxGasPriorityFeeLow,
+            normal: githubChain.ethereumMaxGasPriorityFeeNormal,
+            high: githubChain.ethereumMaxGasPriorityFeeHigh,
+          })
+        : undefined
     chain.isTestnet = githubChain.isTestnet || false
 
     // only set relay and paraId if both exist on githubChain

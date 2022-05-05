@@ -1,6 +1,7 @@
-import { Chain } from './model'
-import { Store } from '@subsquid/substrate-processor'
 import { WsProvider } from '@polkadot/api'
+import { Store } from '@subsquid/substrate-processor'
+
+import { Chain, MaxGasPriorityFees } from './model'
 
 export async function getOrCreate<T extends { id: string }>(
   store: Store,
@@ -83,3 +84,14 @@ export function updateDeprecatedFields(chains: Chain[]): Chain[] {
     return chain
   })
 }
+
+export const defaultMaxGasPriorityFees = ({
+  low,
+  normal,
+  high,
+}: { low?: string; normal?: string; high?: string } = {}) =>
+  new MaxGasPriorityFees({
+    low: typeof low === 'string' ? low : '2000000000', // 2_000_000_000 wei == 2 gwei
+    normal: typeof normal === 'string' ? normal : '10000000000', // 10_000_000_000 wei == 10 gwei
+    high: typeof high === 'string' ? high : '50000000000', // 50_000_000_000 wei == 50 gwei
+  })
