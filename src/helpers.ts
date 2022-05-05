@@ -87,11 +87,11 @@ export function updateDeprecatedFields(chains: Chain[]): Chain[] {
 
 export const defaultMaxGasPriorityFees = ({
   low,
-  normal,
+  medium,
   high,
-}: { low?: string; normal?: string; high?: string } = {}) =>
+}: { low?: string; medium?: string; high?: string } = {}) =>
   new MaxGasPriorityFees({
     low: typeof low === 'string' ? low : '2000000000', // 2_000_000_000 wei == 2 gwei
-    normal: typeof normal === 'string' ? normal : '10000000000', // 10_000_000_000 wei == 10 gwei
+    medium: typeof medium === 'string' ? medium : '10000000000', // 10_000_000_000 wei == 10 gwei
     high: typeof high === 'string' ? high : '50000000000', // 50_000_000_000 wei == 50 gwei
   })

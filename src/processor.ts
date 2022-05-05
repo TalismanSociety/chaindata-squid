@@ -110,7 +110,7 @@ processor.addPostHook(async ({ block, store }) => {
       (githubChain.ethereumRpcs || []).length > 0
         ? defaultMaxGasPriorityFees({
             low: githubChain.ethereumMaxGasPriorityFeeLow,
-            normal: githubChain.ethereumMaxGasPriorityFeeNormal,
+            medium: githubChain.ethereumMaxGasPriorityFeeMedium,
             high: githubChain.ethereumMaxGasPriorityFeeHigh,
           })
         : undefined

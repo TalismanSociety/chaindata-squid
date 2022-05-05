@@ -174,8 +174,8 @@ type MaxGasPriorityFees {
   "the recommended max priority fee for low priority transactions - wei/planck units"
   low: String!
 
-  "the recommended max gas priority fee for normal priority transactions - wei/planck units"
-  normal: String!
+  "the recommended max gas priority fee for medium priority transactions - wei/planck units"
+  medium: String!
 
   "the recommended max gas priority fee for high priority transactions - wei/planck units"
   high: String!

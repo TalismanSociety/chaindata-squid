@@ -3,14 +3,14 @@ import * as marshal from "./marshal"
 
 export class MaxGasPriorityFees {
   private _low!: string
-  private _normal!: string
+  private _medium!: string
   private _high!: string
 
   constructor(props?: Partial<Omit<MaxGasPriorityFees, 'toJSON'>>, json?: any) {
     Object.assign(this, props)
     if (json != null) {
       this._low = marshal.string.fromJSON(json.low)
-      this._normal = marshal.string.fromJSON(json.normal)
+      this._medium = marshal.string.fromJSON(json.medium)
       this._high = marshal.string.fromJSON(json.high)
     }
   }
@@ -28,15 +28,15 @@ export class MaxGasPriorityFees {
   }
 
   /**
-   * the recommended max gas priority fee for normal priority transactions - wei/planck units
+   * the recommended max gas priority fee for medium priority transactions - wei/planck units
    */
-  get normal(): string {
-    assert(this._normal != null, 'uninitialized access')
-    return this._normal
+  get medium(): string {
+    assert(this._medium != null, 'uninitialized access')
+    return this._medium
   }
 
-  set normal(value: string) {
-    this._normal = value
+  set medium(value: string) {
+    this._medium = value
   }
 
   /**
@@ -54,7 +54,7 @@ export class MaxGasPriorityFees {
   toJSON(): object {
     return {
       low: this.low,
-      normal: this.normal,
+      medium: this.medium,
       high: this.high,
     }
   }

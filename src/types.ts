@@ -13,7 +13,7 @@ export type GithubChain = {
   ethereumExplorerUrl?: string
   ethereumRpcs?: string[]
   ethereumMaxGasPriorityFeeLow?: string
-  ethereumMaxGasPriorityFeeNormal?: string
+  ethereumMaxGasPriorityFeeMedium?: string
   ethereumMaxGasPriorityFeeHigh?: string
   paraId?: number
   relay?: { id: string }
