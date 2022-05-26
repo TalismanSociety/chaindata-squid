@@ -144,6 +144,7 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
       chain.rpcs = (githubChain.rpcs || []).map((url) => new SubstrateRpc({ url, isHealthy: false }))
 
       // only set relay and paraId if both exist on githubChain
+      // TODO: Figure out parachains automatically
       chain.paraId = relay !== null && githubChain.paraId ? githubChain.paraId : null
       chain.relay = relay !== null && githubChain.paraId ? relay : null
 
@@ -192,7 +193,11 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
               // set unhealthy
               rpc.isHealthy = false
             } finally {
-              socket !== null && socket.disconnect()
+              try {
+                socket !== null && socket.disconnect()
+              } catch (error) {
+                console.error('Disconnect error', error)
+              }
             }
           })
         )
@@ -312,7 +317,11 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
           } catch (error) {
             console.warn(chain.id, `attempt ${attempt} failed`, error)
           } finally {
-            socket !== null && socket.disconnect()
+            try {
+              socket !== null && socket.disconnect()
+            } catch (error) {
+              console.error('Disconnect error', error)
+            }
           }
         }
 
@@ -340,7 +349,7 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
     const isInvalidEvmNetwork = (evmNetwork: EvmNetwork | GithubEvmNetwork) =>
       !isStandaloneEvmNetwork(evmNetwork) && !isSubstrateEvmNetwork(evmNetwork)
 
-    const storeEvmNetworks = await store.find(EvmNetwork, { loadRelationIds: true })
+    const storeEvmNetworks = await store.find(EvmNetwork)
     const deletedStandaloneEvmNetworkIdsMap = Object.fromEntries(
       storeEvmNetworks.filter(isStandaloneEvmNetwork).map(({ id }) => [id, true])
     )
@@ -384,7 +393,7 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
 
           const substrateChain = await store.get(Chain, {
             where: { id: evmNetwork.substrateChainId },
-            loadRelationIds: true,
+            loadRelationIds: { disableMixedMap: true },
           })
           if (!substrateChain) return null
           entity.substrateChain = substrateChain
@@ -533,16 +542,16 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
       [
         ...[token.squidImplementationDetailChain, ...token.squidImplementationDetailNativeToChains]
           .filter(Boolean)
-          .map((id) => chainsMap[id as unknown as string]),
+          .map((chain) => chainsMap[chain!.id]),
         ...[token.squidImplementationDetailEvmNetwork, ...token.squidImplementationDetailNativeToEvmNetworks]
           .filter(Boolean)
-          .map((id) => evmNetworksMap[id as unknown as string]),
+          .map((evmNetwork) => evmNetworksMap[evmNetwork!.id]),
       ]
         .filter(Boolean)
         .map(({ isTestnet }) => isTestnet)
         .every((isTestnet) => isTestnet)
 
-    const tokens = await store.find(Token, { loadRelationIds: true })
+    const tokens = await store.find(Token, { loadRelationIds: { disableMixedMap: true } })
 
     // get coingecko ids from coingecko via token symbols
     const coingeckoList: Array<{ id: string; symbol: string; name: string }> = await axios
