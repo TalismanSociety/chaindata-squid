@@ -33,7 +33,7 @@ import { GithubChain, GithubEvmNetwork, GithubToken, NonFunctionPropertyNames } 
 const processor = new SubstrateProcessor('chaindata')
 
 const numBlocksPerExecution = 50 // only run every 50 blocks ≈ 5 minutes at 6s / block
-const skipBlocksOlderThan = 300_000 // 300_000ms = 300 seconds = skip execution for any blocks older than 5 minutes
+const skipBlocksOlderThan = 86_400_000 // 86,400 seconds = skip execution for any blocks older than 24 hours
 const githubChaindataBranch = 'feat/split-entities' // 'main'
 const githubChaindataBaseUrl = `https://raw.githubusercontent.com/TalismanSociety/chaindata/${githubChaindataBranch}`
 const githubChainsUrl = `${githubChaindataBaseUrl}/chaindata.json`
