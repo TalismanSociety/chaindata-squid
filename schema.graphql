@@ -1,5 +1,5 @@
 type Chain @entity {
-  "talisman-defined id for this chain"
+  "talisman-defined id for this substrate chain"
   id: ID!
 
   "is chain this a testnet?"
@@ -32,26 +32,11 @@ type Chain @entity {
   "native token for this chain"
   nativeToken: Token
 
-  "native token symbol for this chain - deprecated: use chain.nativeToken.symbol"
-  token: String @deprecated(reason: "use chain.nativeToken.symbol")
-
-  "native token decimals for this chain - deprecated: use chain.nativeToken.decimals"
-  decimals: Int @deprecated(reason: "use chain.nativeToken.decimals")
-
-  "minimum native tokens per account for this chain - deprecated: use chain.nativeToken.existentialDeposit"
-  existentialDeposit: String @deprecated(reason: "use chain.nativeToken.existentialDeposit")
-
-  "native token coingecko id for this chain - deprecated: use chain.nativeToken.coingeckoId"
-  coingeckoId: String @deprecated(reason: "use chain.nativeToken.coingeckoId")
-
-  "native token rates for this chain - deprecated: use chain.nativeToken.rates"
-  rates: Rates @deprecated(reason: "use chain.nativeToken.rates")
-
-  "if this chain has orml tokens, this is the index of CurrencyId::Token used for identifying them on-chain"
+  "if this chain has orml tokens, this is the index of CurrencyId::Token used for identifying them on-chain. this index is needed for fetching orml token balances"
   tokensCurrencyIdIndex: Int
 
-  "orml tokens for this chain"
-  tokens: [Token!]
+  "other tokens on this chain"
+  tokens: [Token!]! @derivedFrom(field: "squidImplementationDetailChain")
 
   "account format for this chain"
   account: String
@@ -59,26 +44,17 @@ type Chain @entity {
   "subscan endpoint for this chain"
   subscanUrl: String
 
-  "talisman-defined rpcs for this chain"
-  rpcs: [Rpc!]!
-
-  "ethereum block explorer url for this chain"
-  ethereumExplorerUrl: String
-
-  "talisman-defined ethereum rpcs for this chain"
-  ethereumRpcs: [EthereumRpc!]!
-
-  "the chain identifier used for signing ethereum transactions"
-  ethereumId: Int
-
-  "the recommended miner incentive to offer based on low, medium or high evm transaction priority"
-  ethereumMaxGasPriorityFees: MaxGasPriorityFees
+  "talisman-defined substrate rpcs for this chain"
+  rpcs: [SubstrateRpc!]!
 
   "health status of this chain"
   isHealthy: Boolean!
 
+  "evm networks on this chain"
+  evmNetworks: [EvmNetwork!]! @derivedFrom(field: "substrateChain")
+
   "parathreads of this chain (if this chain is a relaychain)"
-  parathreads: [Chain!] @derivedFrom(field: "relay")
+  parathreads: [Chain!]! @derivedFrom(field: "relay")
 
   "paraId of this chain (if this chain is a parachain for another chain)"
   paraId: Int
@@ -87,15 +63,38 @@ type Chain @entity {
   relay: Chain
 }
 
-type Token {
-  "talisman-defined id for this token"
+type EvmNetwork @entity {
+  "the chain identifier used for signing ethereum transactions"
   id: ID!
 
-  "the on-chain TokenSymbol index of this token"
-  index: Int
+  "is this network a testnet?"
+  isTestnet: Boolean!
 
-  "token symbol - deprecated: use token.symbol"
-  token: String @deprecated(reason: "use token.symbol")
+  "talisman-defined name for this network"
+  name: String
+
+  "native token for this network"
+  nativeToken: Token
+
+  "other tokens on this network"
+  tokens: [Token!]! @derivedFrom(field: "squidImplementationDetailEvmNetwork")
+
+  "block explorer url for this network"
+  explorerUrl: String
+
+  "talisman-defined ethereum rpcs for this network"
+  rpcs: [EthereumRpc!]!
+
+  "health status of this network"
+  isHealthy: Boolean!
+
+  "substrate chain this evm network runs on"
+  substrateChain: Chain
+}
+
+interface IToken {
+  "talisman-defined id for this token"
+  id: ID!
 
   "token symbol"
   symbol: String
@@ -103,17 +102,155 @@ type Token {
   "token decimals"
   decimals: Int
 
-  "minimum tokens per account"
-  existentialDeposit: String
-
   "coingecko id for this token"
   coingeckoId: String
 
-  "rates for this token"
-  rates: Rates
+  "fiat/btc/eth/dot rates for this token"
+  rates: TokenRates
 }
 
-type Rates {
+type Token @entity {
+  "talisman-defined id for this token"
+  id: ID!
+
+  "implementation detail, can be removed once https://github.com/subsquid/squid/issues/41 is merged"
+  squidImplementationDetail: SquidImplementationDetail!
+
+  "implementation detail for relation lookups, can be removed once https://github.com/subsquid/squid/issues/41 is merged"
+  squidImplementationDetailNativeToChains: [Chain!]! @derivedFrom(field: "nativeToken")
+  "implementation detail for relation lookups, can be removed once https://github.com/subsquid/squid/issues/41 is merged"
+  squidImplementationDetailNativeToEvmNetworks: [EvmNetwork!]! @derivedFrom(field: "nativeToken")
+
+  "implementation detail for relation lookups, can be removed once https://github.com/subsquid/squid/issues/41 is merged"
+  squidImplementationDetailChain: Chain
+  "implementation detail for relation lookups, can be removed once https://github.com/subsquid/squid/issues/41 is merged"
+  squidImplementationDetailEvmNetwork: EvmNetwork
+}
+
+union SquidImplementationDetail =
+    NativeToken
+  | OrmlToken
+  | LiquidCrowdloanToken
+  | LiquidityProviderToken
+  | XcToken
+  | Erc20Token
+
+type NativeToken implements IToken {
+  "talisman-defined id for this token"
+  id: ID!
+  "token symbol"
+  symbol: String
+  "token decimals"
+  decimals: Int
+  "coingecko id for this token"
+  coingeckoId: String
+  "fiat/btc/eth/dot rates for this token"
+  rates: TokenRates
+
+  "minimum tokens per account"
+  existentialDeposit: BigInt
+
+  # TODO: Add support for forward chain lookups once https://github.com/subsquid/squid/issues/41 is merged
+
+  # "substrate chain this token is a native token on"
+  # chain: Chain
+
+  # TODO: Add support for forward evm lookups once https://github.com/subsquid/squid/issues/41 is merged
+
+  # "evm network this token is a native token on"
+  # evmNetwork: EvmNetwork
+}
+
+type OrmlToken implements IToken {
+  "talisman-defined id for this token"
+  id: ID!
+  "token symbol"
+  symbol: String
+  "token decimals"
+  decimals: Int
+  "coingecko id for this token"
+  coingeckoId: String
+  "fiat/btc/eth/dot rates for this token"
+  rates: TokenRates
+
+  "minimum tokens per account"
+  existentialDeposit: BigInt
+
+  "the on-chain TokenSymbol index of this token"
+  index: Int
+
+  "substrate chain this token is an orml token on"
+  chain: Chain
+}
+
+type LiquidCrowdloanToken implements IToken {
+  "talisman-defined id for this token"
+  id: ID!
+  "token symbol"
+  symbol: String
+  "token decimals"
+  decimals: Int
+  "coingecko id for this token"
+  coingeckoId: String
+  "fiat/btc/eth/dot rates for this token"
+  rates: TokenRates
+
+  "on-chain liquidcrowdloan index for this token"
+  index: Int
+
+  "substrate chain this token is on"
+  chain: Chain
+}
+
+type LiquidityProviderToken implements IToken {
+  "talisman-defined id for this token"
+  id: ID!
+  "token symbol"
+  symbol: String
+  "token decimals"
+  decimals: Int
+  "coingecko id for this token"
+  coingeckoId: String
+  "fiat/btc/eth/dot rates for this token"
+  rates: TokenRates
+}
+
+type XcToken implements IToken {
+  "talisman-defined id for this token"
+  id: ID!
+  "token symbol"
+  symbol: String
+  "token decimals"
+  decimals: Int
+  "coingecko id for this token"
+  coingeckoId: String
+  "fiat/btc/eth/dot rates for this token"
+  rates: TokenRates
+}
+
+type Erc20Token implements IToken {
+  "talisman-defined id for this token"
+  id: ID!
+  "token symbol"
+  symbol: String
+  "token decimals"
+  decimals: Int
+  "coingecko id for this token"
+  coingeckoId: String
+  "fiat/btc/eth/dot rates for this token"
+  rates: TokenRates
+
+  "on-chain erc20 contract address of this token"
+  contractAddress: String
+
+  "substrate chain this token is on"
+  chain: Chain
+
+  "evm network this token is on"
+  evmNetwork: EvmNetwork
+}
+
+type TokenRates {
   "us dollar rate"
   usd: Float
 
@@ -154,11 +291,11 @@ type Rates {
   dot: Float
 }
 
-type Rpc {
-  "url of this rpc"
+type SubstrateRpc {
+  "url of this substrate rpc"
   url: String!
 
-  "health status of this rpc"
+  "health status of this substrate rpc"
   isHealthy: Boolean!
 }
 
@@ -168,15 +305,4 @@ type EthereumRpc {
 
   "health status of this ethereum rpc"
   isHealthy: Boolean!
-}
-
-type MaxGasPriorityFees {
-  "the recommended max priority fee for low priority transactions - wei/planck units"
-  low: String!
-
-  "the recommended max gas priority fee for medium priority transactions - wei/planck units"
-  medium: String!
-
-  "the recommended max gas priority fee for high priority transactions - wei/planck units"
-  high: String!
 }

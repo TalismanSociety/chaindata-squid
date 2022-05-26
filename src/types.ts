@@ -1,22 +1,29 @@
 export type GithubChain = {
   id: string
   isTestnet?: true
-  prefix?: number
   name?: string
-  token?: string
-  coingeckoId?: string | null
-  tokensCoingeckoIds?: { [token: string]: string | null }
-  decimals?: number
   account?: string
   subscanUrl?: string
   rpcs?: string[]
-  ethereumExplorerUrl?: string
-  ethereumRpcs?: string[]
-  ethereumMaxGasPriorityFeeLow?: string
-  ethereumMaxGasPriorityFeeMedium?: string
-  ethereumMaxGasPriorityFeeHigh?: string
   paraId?: number
   relay?: { id: string }
+}
+
+export type GithubEvmNetwork = {
+  substrateChainId?: string
+  name?: string
+  isTestnet?: true
+  explorerUrl?: string
+  rpcs?: string[]
+}
+
+export type GithubToken = {
+  id: string
+  symbol?: string
+  decimals?: number
+  coingeckoId?: string | null
+  contractAddress?: string
+  evmNetworkId?: number
 }
 
 // Some handy types from https://www.typescriptlang.org/docs/handbook/advanced-types.html#distributive-conditional-types

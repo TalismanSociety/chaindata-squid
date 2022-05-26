@@ -1,11 +1,11 @@
 import assert from "assert"
 import * as marshal from "./marshal"
 
-export class Rpc {
+export class SubstrateRpc {
   private _url!: string
   private _isHealthy!: boolean
 
-  constructor(props?: Partial<Omit<Rpc, 'toJSON'>>, json?: any) {
+  constructor(props?: Partial<Omit<SubstrateRpc, 'toJSON'>>, json?: any) {
     Object.assign(this, props)
     if (json != null) {
       this._url = marshal.string.fromJSON(json.url)
@@ -14,7 +14,7 @@ export class Rpc {
   }
 
   /**
-   * url of this rpc
+   * url of this substrate rpc
    */
   get url(): string {
     assert(this._url != null, 'uninitialized access')
@@ -26,7 +26,7 @@ export class Rpc {
   }
 
   /**
-   * health status of this rpc
+   * health status of this substrate rpc
    */
   get isHealthy(): boolean {
     assert(this._isHealthy != null, 'uninitialized access')

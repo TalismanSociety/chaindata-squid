@@ -1,7 +1,7 @@
 import assert from "assert"
 import * as marshal from "./marshal"
 
-export class Rates {
+export class TokenRates {
   private _usd!: number | undefined | null
   private _aud!: number | undefined | null
   private _nzd!: number | undefined | null
@@ -16,7 +16,7 @@ export class Rates {
   private _eth!: number | undefined | null
   private _dot!: number | undefined | null
 
-  constructor(props?: Partial<Omit<Rates, 'toJSON'>>, json?: any) {
+  constructor(props?: Partial<Omit<TokenRates, 'toJSON'>>, json?: any) {
     Object.assign(this, props)
     if (json != null) {
       this._usd = json.usd == null ? undefined : marshal.float.fromJSON(json.usd)

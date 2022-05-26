@@ -1,10 +1,8 @@
-import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, OneToMany as OneToMany_, ManyToOne as ManyToOne_, Index as Index_} from "typeorm"
+import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, ManyToOne as ManyToOne_, Index as Index_, OneToMany as OneToMany_} from "typeorm"
 import * as marshal from "./marshal"
-import {Token} from "./_token"
-import {Rates} from "./_rates"
-import {Rpc} from "./_rpc"
-import {EthereumRpc} from "./_ethereumRpc"
-import {MaxGasPriorityFees} from "./_maxGasPriorityFees"
+import {Token} from "./token.model"
+import {SubstrateRpc} from "./_substrateRpc"
+import {EvmNetwork} from "./evmNetwork.model"
 
 @Entity_()
 export class Chain {
@@ -13,7 +11,7 @@ export class Chain {
   }
 
   /**
-   * talisman-defined id for this chain
+   * talisman-defined id for this substrate chain
    */
   @PrimaryColumn_()
   id!: string
@@ -27,7 +25,7 @@ export class Chain {
   /**
    * index for sorting chains in a user-friendly way
    */
-  @Column_("integer", {nullable: true})
+  @Column_("int4", {nullable: true})
   sortIndex!: number | undefined | null
 
   /**
@@ -39,7 +37,7 @@ export class Chain {
   /**
    * ss58 prefix for this chain
    */
-  @Column_("integer", {nullable: true})
+  @Column_("int4", {nullable: true})
   prefix!: number | undefined | null
 
   /**
@@ -75,50 +73,21 @@ export class Chain {
   /**
    * native token for this chain
    */
-  @Column_("jsonb", {transformer: {to: obj => obj == null ? undefined : obj.toJSON(), from: obj => obj == null ? undefined : new Token(undefined, obj)}, nullable: true})
+  @Index_()
+  @ManyToOne_(() => Token, {nullable: true})
   nativeToken!: Token | undefined | null
 
   /**
-   * native token symbol for this chain - deprecated: use chain.nativeToken.symbol
+   * if this chain has orml tokens, this is the index of CurrencyId::Token used for identifying them on-chain. this index is needed for fetching orml token balances
    */
-  @Column_("text", {nullable: true})
-  token!: string | undefined | null
-
-  /**
-   * native token decimals for this chain - deprecated: use chain.nativeToken.decimals
-   */
-  @Column_("integer", {nullable: true})
-  decimals!: number | undefined | null
-
-  /**
-   * minimum native tokens per account for this chain - deprecated: use chain.nativeToken.existentialDeposit
-   */
-  @Column_("text", {nullable: true})
-  existentialDeposit!: string | undefined | null
-
-  /**
-   * native token coingecko id for this chain - deprecated: use chain.nativeToken.coingeckoId
-   */
-  @Column_("text", {nullable: true})
-  coingeckoId!: string | undefined | null
-
-  /**
-   * native token rates for this chain - deprecated: use chain.nativeToken.rates
-   */
-  @Column_("jsonb", {transformer: {to: obj => obj == null ? undefined : obj.toJSON(), from: obj => obj == null ? undefined : new Rates(undefined, obj)}, nullable: true})
-  rates!: Rates | undefined | null
-
-  /**
-   * if this chain has orml tokens, this is the index of CurrencyId::Token used for identifying them on-chain
-   */
-  @Column_("integer", {nullable: true})
+  @Column_("int4", {nullable: true})
   tokensCurrencyIdIndex!: number | undefined | null
 
   /**
-   * orml tokens for this chain
+   * other tokens on this chain
    */
-  @Column_("jsonb", {transformer: {to: obj => obj == null ? undefined : obj.map((val: any) => val.toJSON()), from: obj => obj == null ? undefined : marshal.fromList(obj, val => new Token(undefined, marshal.nonNull(val)))}, nullable: true})
-  tokens!: (Token)[] | undefined | null
+  @OneToMany_(() => Token, e => e.squidImplementationDetailChain)
+  tokens!: Token[]
 
   /**
    * account format for this chain
@@ -133,40 +102,22 @@ export class Chain {
   subscanUrl!: string | undefined | null
 
   /**
-   * talisman-defined rpcs for this chain
+   * talisman-defined substrate rpcs for this chain
    */
-  @Column_("jsonb", {transformer: {to: obj => obj.map((val: any) => val.toJSON()), from: obj => marshal.fromList(obj, val => new Rpc(undefined, marshal.nonNull(val)))}, nullable: false})
-  rpcs!: (Rpc)[]
-
-  /**
-   * ethereum block explorer url for this chain
-   */
-  @Column_("text", {nullable: true})
-  ethereumExplorerUrl!: string | undefined | null
-
-  /**
-   * talisman-defined ethereum rpcs for this chain
-   */
-  @Column_("jsonb", {transformer: {to: obj => obj.map((val: any) => val.toJSON()), from: obj => marshal.fromList(obj, val => new EthereumRpc(undefined, marshal.nonNull(val)))}, nullable: false})
-  ethereumRpcs!: (EthereumRpc)[]
-
-  /**
-   * the chain identifier used for signing ethereum transactions
-   */
-  @Column_("integer", {nullable: true})
-  ethereumId!: number | undefined | null
-
-  /**
-   * the recommended miner incentive to offer based on low, medium or high evm transaction priority
-   */
-  @Column_("jsonb", {transformer: {to: obj => obj == null ? undefined : obj.toJSON(), from: obj => obj == null ? undefined : new MaxGasPriorityFees(undefined, obj)}, nullable: true})
-  ethereumMaxGasPriorityFees!: MaxGasPriorityFees | undefined | null
+  @Column_("jsonb", {transformer: {to: obj => obj.map((val: any) => val.toJSON()), from: obj => marshal.fromList(obj, val => new SubstrateRpc(undefined, marshal.nonNull(val)))}, nullable: false})
+  rpcs!: (SubstrateRpc)[]
 
   /**
    * health status of this chain
    */
   @Column_("bool", {nullable: false})
   isHealthy!: boolean
+
+  /**
+   * evm networks on this chain
+   */
+  @OneToMany_(() => EvmNetwork, e => e.substrateChain)
+  evmNetworks!: EvmNetwork[]
 
   /**
    * parathreads of this chain (if this chain is a relaychain)
@@ -177,7 +128,7 @@ export class Chain {
   /**
    * paraId of this chain (if this chain is a parachain for another chain)
    */
-  @Column_("integer", {nullable: true})
+  @Column_("int4", {nullable: true})
   paraId!: number | undefined | null
 
   /**
