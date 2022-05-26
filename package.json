@@ -15,10 +15,13 @@
     "release:hash": "sqd squid release chaindata@`git rev-parse --short HEAD`",
     "release:test": "sqd squid release chaindata@test --source git@github.com:TalismanSociety/chaindata.git#subsquid",
     "release:latest": "sqd squid release chaindata@latest --source git@github.com:TalismanSociety/chaindata.git#subsquid",
+    "release:next": "sqd squid release chaindata@next --source git@github.com:TalismanSociety/chaindata.git#subsquid",
     "update:test": "sqd squid update chaindata@test --source git@github.com:TalismanSociety/chaindata.git#subsquid",
     "update:test:resetdb": "sqd squid update chaindata@test --source git@github.com:TalismanSociety/chaindata.git#subsquid --hardReset",
     "update:latest": "sqd squid update chaindata@latest --source git@github.com:TalismanSociety/chaindata.git#subsquid",
-    "update:latest:resetdb": "sqd squid update chaindata@latest --source git@github.com:TalismanSociety/chaindata.git#subsquid --hardReset"
+    "update:latest:resetdb": "sqd squid update chaindata@latest --source git@github.com:TalismanSociety/chaindata.git#subsquid --hardReset",
+    "update:next": "sqd squid update chaindata@next --source git@github.com:TalismanSociety/chaindata.git#subsquid",
+    "update:next:resetdb": "sqd squid update chaindata@next --source git@github.com:TalismanSociety/chaindata.git#subsquid --hardReset"
   },
   "dependencies": {
     "@polkadot/api": "^8.4.2",
