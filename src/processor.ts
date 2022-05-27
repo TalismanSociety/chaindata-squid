@@ -305,7 +305,7 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
 
             // set values
             chain.genesisHash = genesisHash
-            chain.prefix = ss58Format || 42
+            chain.prefix = typeof ss58Format === 'number' ? ss58Format : 42
             chain.chainName = chainName
             chain.implName = implName
             chain.specName = specName
