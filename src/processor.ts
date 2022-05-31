@@ -15,7 +15,7 @@ import {
   ormlTokenId,
   saveToken,
   sendWithTimeout,
-  sortChains,
+  sortChainsAndNetworks,
 } from './helpers'
 import {
   Chain,
@@ -157,17 +157,8 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
     if (deletedChainIds.length > 0) await store.delete(Chain, deletedChainIds)
   },
 
-  async function updateChainSortIndexes({ store }) {
-    const chains = await store.find(Chain)
-
-    const sortedChains = sortChains(chains)
-    sortedChains.forEach((chain, index) => (chain.sortIndex = index))
-
-    await store.save(sortedChains)
-  },
-
   async function updateChainData({ store }) {
-    const chains = await store.find(Chain, { order: { sortIndex: 'ASC' } })
+    const chains = await store.find(Chain)
 
     const chainUpdates = await Promise.all(
       chains.map(async (chain): Promise<Chain> => {
@@ -482,6 +473,15 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
     if (deletedEvmNetworkIds.length > 0) await store.delete(EvmNetwork, deletedEvmNetworkIds)
   },
 
+  async function updateSortIndexes({ store }) {
+    const chains = await store.find(Chain, { loadRelationIds: { disableMixedMap: true } })
+    const evmNetworks = await store.find(EvmNetwork, { loadRelationIds: { disableMixedMap: true } })
+
+    const sorted = sortChainsAndNetworks(chains, evmNetworks)
+
+    await store.save(sorted)
+  },
+
   async function updateTokensFromGithub({ store }) {
     const isRenameOrCoingeckoId = (token: GithubToken) =>
       typeof token.id !== 'undefined' &&
@@ -532,7 +532,7 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
     }
   },
 
-  async function updateTokenRates({ store }) {
+  async function updateTokensTestnetField({ store }) {
     const chainsMap = Object.fromEntries((await store.find(Chain)).map((chain) => [chain.id, chain]))
     const evmNetworksMap = Object.fromEntries(
       (await store.find(EvmNetwork)).map((evmNetwork) => [evmNetwork.id, evmNetwork])
@@ -553,6 +553,17 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
 
     const tokens = await store.find(Token, { loadRelationIds: { disableMixedMap: true } })
 
+    const updatedTokens = tokens.map((token) => {
+      token.squidImplementationDetail.isTestnet = isTestnetToken(token)
+      return token
+    })
+
+    await store.save(updatedTokens)
+  },
+
+  async function updateTokenRates({ store }) {
+    const tokens = await store.find(Token, { loadRelationIds: { disableMixedMap: true } })
+
     // get coingecko ids from coingecko via token symbols
     const coingeckoList: Array<{ id: string; symbol: string; name: string }> = await axios
       .get(`${coingeckoApiUrl}/coins/list`)
@@ -569,7 +580,7 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
 
     const fetchCoingeckoIds = tokens
       .map((token) => {
-        if (isTestnetToken(token)) return
+        if (token.squidImplementationDetail.isTestnet) return
 
         const lookupSymbol = token.squidImplementationDetail.symbol?.toUpperCase()
         if (lookupSymbol && token.squidImplementationDetail.coingeckoId === undefined)
@@ -589,7 +600,7 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
 
     const updatedTokens = tokens.map((token) => {
       token.squidImplementationDetail.rates = null
-      if (isTestnetToken(token)) return token
+      if (token.squidImplementationDetail.isTestnet) return token
       if (!token.squidImplementationDetail.coingeckoId) return token
 
       const rates = coingeckoPrices[token.squidImplementationDetail.coingeckoId]

@@ -5,6 +5,7 @@ import {TokenRates} from "./_tokenRates"
 export class XcToken {
   public readonly isTypeOf = 'XcToken'
   private _id!: string
+  private _isTestnet!: boolean
   private _symbol!: string | undefined | null
   private _decimals!: number | undefined | null
   private _coingeckoId!: string | undefined | null
@@ -14,6 +15,7 @@ export class XcToken {
     Object.assign(this, props)
     if (json != null) {
       this._id = marshal.id.fromJSON(json.id)
+      this._isTestnet = marshal.boolean.fromJSON(json.isTestnet)
       this._symbol = json.symbol == null ? undefined : marshal.string.fromJSON(json.symbol)
       this._decimals = json.decimals == null ? undefined : marshal.int.fromJSON(json.decimals)
       this._coingeckoId = json.coingeckoId == null ? undefined : marshal.string.fromJSON(json.coingeckoId)
@@ -31,6 +33,18 @@ export class XcToken {
 
   set id(value: string) {
     this._id = value
+  }
+
+  /**
+   * is this a testnet token?
+   */
+  get isTestnet(): boolean {
+    assert(this._isTestnet != null, 'uninitialized access')
+    return this._isTestnet
+  }
+
+  set isTestnet(value: boolean) {
+    this._isTestnet = value
   }
 
   /**
@@ -81,6 +95,7 @@ export class XcToken {
     return {
       isTypeOf: this.isTypeOf,
       id: this.id,
+      isTestnet: this.isTestnet,
       symbol: this.symbol,
       decimals: this.decimals,
       coingeckoId: this.coingeckoId,

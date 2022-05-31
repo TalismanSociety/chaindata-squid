@@ -5,7 +5,7 @@ type Chain @entity {
   "is chain this a testnet?"
   isTestnet: Boolean!
 
-  "index for sorting chains in a user-friendly way"
+  "index for sorting chains and evm networks in a user-friendly way"
   sortIndex: Int
 
   "hash of the first block on this chain"
@@ -70,6 +70,9 @@ type EvmNetwork @entity {
   "is this network a testnet?"
   isTestnet: Boolean!
 
+  "index for sorting chains and evm networks in a user-friendly way"
+  sortIndex: Int
+
   "talisman-defined name for this network"
   name: String
 
@@ -95,6 +98,9 @@ type EvmNetwork @entity {
 interface IToken {
   "talisman-defined id for this token"
   id: ID!
+
+  "is this a testnet token?"
+  isTestnet: Boolean!
 
   "token symbol"
   symbol: String
@@ -138,6 +144,8 @@ union SquidImplementationDetail =
 type NativeToken implements IToken {
   "talisman-defined id for this token"
   id: ID!
+  "is this a testnet token?"
+  isTestnet: Boolean!
   "token symbol"
   symbol: String
   "token decimals"
@@ -164,6 +172,8 @@ type NativeToken implements IToken {
 type OrmlToken implements IToken {
   "talisman-defined id for this token"
   id: ID!
+  "is this a testnet token?"
+  isTestnet: Boolean!
   "token symbol"
   symbol: String
   "token decimals"
@@ -186,6 +196,8 @@ type OrmlToken implements IToken {
 type LiquidCrowdloanToken implements IToken {
   "talisman-defined id for this token"
   id: ID!
+  "is this a testnet token?"
+  isTestnet: Boolean!
   "token symbol"
   symbol: String
   "token decimals"
@@ -205,6 +217,8 @@ type LiquidCrowdloanToken implements IToken {
 type LiquidityProviderToken implements IToken {
   "talisman-defined id for this token"
   id: ID!
+  "is this a testnet token?"
+  isTestnet: Boolean!
   "token symbol"
   symbol: String
   "token decimals"
@@ -218,6 +232,8 @@ type LiquidityProviderToken implements IToken {
 type XcToken implements IToken {
   "talisman-defined id for this token"
   id: ID!
+  "is this a testnet token?"
+  isTestnet: Boolean!
   "token symbol"
   symbol: String
   "token decimals"
@@ -231,6 +247,8 @@ type XcToken implements IToken {
 type Erc20Token implements IToken {
   "talisman-defined id for this token"
   id: ID!
+  "is this a testnet token?"
+  isTestnet: Boolean!
   "token symbol"
   symbol: String
   "token decimals"

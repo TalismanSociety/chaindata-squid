@@ -31,7 +31,7 @@ export async function getOrCreate<T extends { id: string }>(
   return entity
 }
 
-export async function getOrCreateToken<T extends { id: string; isTypeOf: string }>(
+export async function getOrCreateToken<T extends { id: string; isTestnet: boolean; isTypeOf: string }>(
   store: Store,
   tokenConstructor: { new (...args: any[]): T },
   id: string
@@ -41,6 +41,7 @@ export async function getOrCreateToken<T extends { id: string; isTypeOf: string 
 
   if (!(tokenEntity.squidImplementationDetail instanceof tokenConstructor)) {
     newToken.id = id
+    newToken.isTestnet = false
     return newToken
   }
 
@@ -120,9 +121,21 @@ export function sendWithTimeout(socket: WsProvider, requests: Array<[string, any
   })
 }
 
-export function sortChains(chains: Chain[]): Chain[] {
-  return [...chains]
-    .sort((a, b) => {
+export function sortChainsAndNetworks(chains: Chain[], evmNetworks: EvmNetwork[]): Array<Chain | EvmNetwork> {
+  return [
+    ...chains.map((chain): { entity: Chain; isChain: true } => ({
+      entity: chain,
+      isChain: true,
+    })),
+    ...evmNetworks.map((evmNetwork): { entity: EvmNetwork; isChain: false } => ({
+      entity: evmNetwork,
+      isChain: false,
+    })),
+  ]
+    .sort((_a, _b) => {
+      const a = _a.entity
+      const b = _b.entity
+
       if (a.id === b.id) return 0
       if (a.id === 'polkadot') return -1
       if (b.id === 'polkadot') return 1
@@ -132,10 +145,18 @@ export function sortChains(chains: Chain[]): Chain[] {
         if (a.isTestnet) return 1
         if (b.isTestnet) return -1
       }
-      return a.id.localeCompare(b.id)
+
+      const aCmp = _a.isChain ? a.id : a.name?.toLowerCase() || parseInt(a.id)
+      const bCmp = _b.isChain ? b.id : b.name?.toLowerCase() || parseInt(b.id)
+
+      if (typeof aCmp === 'number' && typeof bCmp === 'number') return aCmp - bCmp
+      if (typeof aCmp === 'number') return 1
+      if (typeof bCmp === 'number') return -1
+
+      return aCmp.localeCompare(bCmp)
     })
-    .map((chain, sortIndex) => {
-      if (chain.sortIndex !== sortIndex) chain.sortIndex = sortIndex
-      return chain
+    .map((chainOrNetwork, sortIndex) => {
+      if (chainOrNetwork.entity.sortIndex !== sortIndex) chainOrNetwork.entity.sortIndex = sortIndex
+      return chainOrNetwork.entity
     })
 }

@@ -23,7 +23,7 @@ export class Chain {
   isTestnet!: boolean
 
   /**
-   * index for sorting chains in a user-friendly way
+   * index for sorting chains and evm networks in a user-friendly way
    */
   @Column_("int4", {nullable: true})
   sortIndex!: number | undefined | null
