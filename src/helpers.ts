@@ -21,6 +21,7 @@ export async function getOrCreate<T extends { id: string }>(
 ): Promise<T> {
   let entity = await store.get<T>(entityConstructor, {
     where: { id },
+    loadRelationIds: { disableMixedMap: true },
   })
 
   if (entity == null) {

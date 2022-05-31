@@ -158,7 +158,7 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
   },
 
   async function updateChainData({ store }) {
-    const chains = await store.find(Chain)
+    const chains = await store.find(Chain, { loadRelationIds: { disableMixedMap: true } })
 
     const chainUpdates = await Promise.all(
       chains.map(async (chain): Promise<Chain> => {
@@ -253,7 +253,10 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
             const tokenIndexLookup = Object.fromEntries(tokenSymbolVariants.map(({ name, index }) => [name, index]))
 
             const existingTokens = (
-              await store.find(Token, { where: { squidImplementationDetailChain: chain.id } })
+              await store.find(Token, {
+                where: { squidImplementationDetailChain: chain.id },
+                loadRelationIds: { disableMixedMap: true },
+              })
             ).filter((token) => token.squidImplementationDetail.isTypeOf === 'OrmlToken')
             const deletedTokensMap = Object.fromEntries(existingTokens.map((token) => [token.id, token]))
             await Promise.all(
@@ -329,18 +332,18 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
   async function updateEvmNetworksFromGithub({ store }) {
     const isStandaloneEvmNetwork = (evmNetwork: EvmNetwork | GithubEvmNetwork) =>
       evmNetwork instanceof EvmNetwork
-        ? !evmNetwork.substrateChain
+        ? typeof evmNetwork.substrateChain?.id !== 'string'
         : typeof evmNetwork.substrateChainId === 'undefined' && typeof evmNetwork.name !== 'undefined'
 
     const isSubstrateEvmNetwork = (evmNetwork: EvmNetwork | GithubEvmNetwork) =>
       evmNetwork instanceof EvmNetwork
-        ? !!evmNetwork.substrateChain
+        ? typeof evmNetwork.substrateChain?.id === 'string'
         : typeof evmNetwork.substrateChainId !== 'undefined'
 
     const isInvalidEvmNetwork = (evmNetwork: EvmNetwork | GithubEvmNetwork) =>
       !isStandaloneEvmNetwork(evmNetwork) && !isSubstrateEvmNetwork(evmNetwork)
 
-    const storeEvmNetworks = await store.find(EvmNetwork)
+    const storeEvmNetworks = await store.find(EvmNetwork, { loadRelationIds: { disableMixedMap: true } })
     const deletedStandaloneEvmNetworkIdsMap = Object.fromEntries(
       storeEvmNetworks.filter(isStandaloneEvmNetwork).map(({ id }) => [id, true])
     )
@@ -352,7 +355,10 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
     const githubEvmNetworks = processorSharedData.githubEvmNetworks
     const standaloneEvmNetworks = await Promise.all(
       githubEvmNetworks.filter(isStandaloneEvmNetwork).map(async (evmNetwork) => {
-        let entity = await store.get(EvmNetwork, { where: { name: evmNetwork.name } })
+        let entity = await store.get(EvmNetwork, {
+          where: { name: evmNetwork.name },
+          loadRelationIds: { disableMixedMap: true },
+        })
         if (!entity) {
           entity = new EvmNetwork()
         }
@@ -371,7 +377,10 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
     const substrateEvmNetworks = (
       await Promise.all(
         githubEvmNetworks.filter(isSubstrateEvmNetwork).map(async (evmNetwork) => {
-          let entity = await store.get(EvmNetwork, { where: { substrateChain: evmNetwork.substrateChainId } })
+          let entity = await store.get(EvmNetwork, {
+            where: { substrateChain: evmNetwork.substrateChainId },
+            loadRelationIds: { disableMixedMap: true },
+          })
           if (!entity) {
             entity = new EvmNetwork()
           }
@@ -438,9 +447,9 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
           )
 
           // set id
-          if (ethereumIds.length > 0) {
+          if (ethereumIds.filter((id): id is string => id !== null).length > 0) {
             // set id to the first healthy rpc's ethereumId
-            evmNetwork.id = ethereumIds.filter((id): id is string => id !== null)[0] || evmNetwork.id
+            evmNetwork.id = ethereumIds.filter((id): id is string => id !== null)[0]
 
             // set any rpcs with a different ethereumId to unhealthy
             ethereumIds.forEach((id, rpcIndex) => {
@@ -453,7 +462,7 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
           const healthyRpcUrls = evmNetwork.rpcs.filter(({ isHealthy }) => isHealthy).map(({ url }) => url)
           evmNetwork.isHealthy = healthyRpcUrls.length > 0
 
-          if (!evmNetwork.id) return null
+          if (typeof evmNetwork.id !== 'string') return null
 
           isStandaloneEvmNetwork(evmNetwork) && delete deletedStandaloneEvmNetworkIdsMap[evmNetwork.id]
           isSubstrateEvmNetwork(evmNetwork) && delete deletedSubstrateEvmNetworkIdsMap[evmNetwork.id]
@@ -493,7 +502,10 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
     const { githubTokens } = processorSharedData
 
     for (const renameOrCoingeckoId of githubTokens.filter(isRenameOrCoingeckoId)) {
-      const tokenEntity = await store.get(Token, { where: { id: renameOrCoingeckoId.id } })
+      const tokenEntity = await store.get(Token, {
+        where: { id: renameOrCoingeckoId.id },
+        loadRelationIds: { disableMixedMap: true },
+      })
       if (!tokenEntity) continue
 
       const token = tokenEntity.squidImplementationDetail
@@ -503,13 +515,16 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
       await saveToken(store, token)
     }
 
-    const existingErc20Tokens = (await store.find(Token)).filter(
+    const existingErc20Tokens = (await store.find(Token, { loadRelationIds: { disableMixedMap: true } })).filter(
       (token) => token.squidImplementationDetail.isTypeOf === 'Erc20Token'
     )
     const deletedTokensMap = Object.fromEntries(existingErc20Tokens.map((token) => [token.id, token]))
 
     for (const erc20 of githubTokens.filter(isErc20)) {
-      const evmNetwork = await store.get(EvmNetwork, { where: { id: erc20.evmNetworkId } })
+      const evmNetwork = await store.get(EvmNetwork, {
+        where: { id: erc20.evmNetworkId },
+        loadRelationIds: { disableMixedMap: true },
+      })
       if (!evmNetwork) continue
 
       const token = await getOrCreateToken(store, Erc20Token, erc20TokenId(evmNetwork.id, erc20.contractAddress))
@@ -533,9 +548,14 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
   },
 
   async function updateTokensTestnetField({ store }) {
-    const chainsMap = Object.fromEntries((await store.find(Chain)).map((chain) => [chain.id, chain]))
+    const chainsMap = Object.fromEntries(
+      (await store.find(Chain, { loadRelationIds: { disableMixedMap: true } })).map((chain) => [chain.id, chain])
+    )
     const evmNetworksMap = Object.fromEntries(
-      (await store.find(EvmNetwork)).map((evmNetwork) => [evmNetwork.id, evmNetwork])
+      (await store.find(EvmNetwork, { loadRelationIds: { disableMixedMap: true } })).map((evmNetwork) => [
+        evmNetwork.id,
+        evmNetwork,
+      ])
     )
 
     const isTestnetToken = (token: Token) =>
