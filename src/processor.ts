@@ -365,8 +365,6 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
 
         entity.isTestnet = evmNetwork.isTestnet || false
         entity.name = evmNetwork.name
-        // entity.nativeToken =
-        // entity.tokens =
         entity.explorerUrl = evmNetwork.explorerUrl
         entity.rpcs = (evmNetwork.rpcs || []).map((url) => new EthereumRpc({ url, isHealthy: false }))
         entity.substrateChain = null
@@ -387,7 +385,6 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
 
           entity.isTestnet = evmNetwork.isTestnet || false
           entity.name = evmNetwork.name
-          // entity.tokens =
           entity.explorerUrl = evmNetwork.explorerUrl
           entity.rpcs = (evmNetwork.rpcs || []).map((url) => new EthereumRpc({ url, isHealthy: false }))
 
@@ -466,6 +463,22 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
 
           isStandaloneEvmNetwork(evmNetwork) && delete deletedStandaloneEvmNetworkIdsMap[evmNetwork.id]
           isSubstrateEvmNetwork(evmNetwork) && delete deletedSubstrateEvmNetworkIdsMap[evmNetwork.id]
+
+          // set up nativeToken for standalone networks
+          if (isStandaloneEvmNetwork(evmNetwork)) {
+            const githubNetwork = githubEvmNetworks
+              .filter(isStandaloneEvmNetwork)
+              .find((network) => network.name === evmNetwork.name)
+            const nativeToken = await getOrCreateToken(
+              store,
+              NativeToken,
+              nativeTokenId(evmNetwork.id, githubNetwork?.symbol || 'ETH')
+            )
+            nativeToken.symbol = githubNetwork?.symbol || 'ETH'
+            nativeToken.decimals = typeof githubNetwork?.decimals === 'number' ? githubNetwork.decimals : 18
+            await saveToken(store, nativeToken)
+            evmNetwork.nativeToken = await getOrCreate(store, Token, nativeToken.id)
+          }
 
           return evmNetwork
         })

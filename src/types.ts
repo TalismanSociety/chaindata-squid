@@ -12,6 +12,8 @@ export type GithubChain = {
 export type GithubEvmNetwork = {
   substrateChainId?: string
   name?: string
+  symbol?: string
+  decimals?: number
   isTestnet?: true
   explorerUrl?: string
   rpcs?: string[]
