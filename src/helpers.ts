@@ -156,8 +156,8 @@ export function sortChainsAndNetworks(chains: Chain[], evmNetworks: EvmNetwork[]
 
       return aCmp.localeCompare(bCmp)
     })
-    .map((chainOrNetwork, sortIndex) => {
-      if (chainOrNetwork.entity.sortIndex !== sortIndex) chainOrNetwork.entity.sortIndex = sortIndex
+    .map((chainOrNetwork, index) => {
+      if (chainOrNetwork.entity.sortIndex !== index + 1) chainOrNetwork.entity.sortIndex = index + 1
       return chainOrNetwork.entity
     })
 }
