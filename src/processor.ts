@@ -12,6 +12,7 @@ import {
   sendWithTimeout,
   setUnhealthy,
   sortChains,
+  tokenSymbolWorkarounds,
   updateDeprecatedFields,
 } from './helpers'
 import { Chain, EthereumRpc, Rates, Rpc, Token } from './model'
@@ -45,7 +46,7 @@ const coingeckoCurrencies: Array<NonFunctionPropertyNames<Rates>> = [
 const chainRpcTimeout = 120_000 // 120_000ms = 120 seconds = 2 minutes timeout on RPC requests
 
 processor.setBatchSize(500)
-processor.setBlockRange({ from: 10_160_000 })
+processor.setBlockRange({ from: 10_710_000 })
 processor.setDataSource({
   chain: 'wss://rpc.polkadot.io',
   archive: lookupArchive('polkadot')[0].url,
@@ -249,7 +250,7 @@ processor.addPostHook(async ({ block, store }) => {
 
         // deconstruct rpc data
         const { specName, specVersion, implName } = runtimeVersion
-        const { ss58Format, tokenDecimals, tokenSymbol } = chainProperties
+        const { ss58Format, tokenDecimals: chainTokenDecimals, tokenSymbol: chainTokenSymbol } = chainProperties
         const registry = getRegistry({
           specName,
           specVersion,
@@ -268,13 +269,22 @@ processor.addPostHook(async ({ block, store }) => {
         const currencyIdLookup = Object.fromEntries(currencyIdVariants.map(({ name, index }) => [name, index]))
         const tokensCurrencyIdIndex = currencyIdLookup['Token']
 
+        const tokenSymbolWorkaroundSymbols = tokenSymbolWorkarounds(chain.id)?.symbols
+        const tokenSymbolWorkaroundDecimals = tokenSymbolWorkarounds(chain.id)?.decimals
+        const tokenSymbolWorkaroundIndexes = tokenSymbolWorkarounds(chain.id)?.indexes
+
+        const tokenSymbol = tokenSymbolWorkaroundSymbols || chainTokenSymbol
+        const tokenDecimals = tokenSymbolWorkaroundDecimals || chainTokenDecimals
+
         const tokenSymbolDef = (metadata.asLatest.lookup?.types || []).find(
           ({ type }) => type.path.slice(-1).toString() === 'TokenSymbol'
         )
-        const tokenSymbolVariants = (tokenSymbolDef?.type?.def?.asVariant?.variants.toJSON() || []) as Array<{
-          name: string
-          index: number
-        }>
+        const tokenSymbolVariants = tokenSymbolWorkaroundIndexes
+          ? tokenSymbolWorkaroundIndexes
+          : ((tokenSymbolDef?.type?.def?.asVariant?.variants.toJSON() || []) as Array<{
+              name: string
+              index: number
+            }>)
         const tokenIndexLookup = Object.fromEntries(tokenSymbolVariants.map(({ name, index }) => [name, index]))
 
         const tokens = Array.isArray(tokenSymbol)

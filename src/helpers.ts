@@ -95,3 +95,12 @@ export const defaultMaxGasPriorityFees = ({
     medium: typeof medium === 'string' ? medium : '10000000000', // 10_000_000_000 wei == 10 gwei
     high: typeof high === 'string' ? high : '50000000000', // 50_000_000_000 wei == 50 gwei
   })
+
+export function tokenSymbolWorkarounds(
+  chainId: string
+): { symbols: string[]; decimals: number[]; indexes: Array<{ name: string; index: number }> } | undefined {
+  return {
+    mangata: { symbols: ['MGX'], decimals: [18], indexes: [{ name: 'MGX', index: 0 }] },
+    // 'gm-rococo': [{ name: 'TODO', index: TODO }, { name: 'TODO', index: TODO }],
+  }[chainId]
+}
