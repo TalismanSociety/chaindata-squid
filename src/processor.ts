@@ -16,6 +16,7 @@ import {
   saveToken,
   sendWithTimeout,
   sortChainsAndNetworks,
+  tokenSymbolWorkarounds,
 } from './helpers'
 import {
   Chain,
@@ -61,7 +62,7 @@ const coingeckoCurrencies: Array<NonFunctionPropertyNames<TokenRates>> = [
 const chainRpcTimeout = 120_000 // 120_000ms = 120 seconds = 2 minutes timeout on RPC requests
 
 processor.setBatchSize(500)
-processor.setBlockRange({ from: 10_470_000 })
+processor.setBlockRange({ from: 10_710_000 })
 processor.setDataSource({
   chain: 'wss://rpc.polkadot.io',
   archive: lookupArchive('polkadot')[0].url,
@@ -160,8 +161,8 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
   async function updateChainData({ store }) {
     const chains = await store.find(Chain, { loadRelationIds: { disableMixedMap: true } })
 
-    const chainUpdates = await Promise.all(
-      chains.map(async (chain): Promise<Chain> => {
+    await Promise.all(
+      chains.map(async (chain): Promise<void> => {
         // get health status of rpcs
         await Promise.all(
           chain.rpcs.map(async (rpc) => {
@@ -224,7 +225,7 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
 
             // deconstruct rpc data
             const { specName, specVersion, implName } = runtimeVersion
-            const { ss58Format, tokenDecimals, tokenSymbol } = chainProperties
+            const { ss58Format, tokenDecimals: chainTokenDecimals, tokenSymbol: chainTokenSymbol } = chainProperties
             const registry = getRegistry({
               specName,
               specVersion,
@@ -243,13 +244,22 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
             const currencyIdLookup = Object.fromEntries(currencyIdVariants.map(({ name, index }) => [name, index]))
             const tokensCurrencyIdIndex = currencyIdLookup['Token']
 
+            const tokenSymbolWorkaroundSymbols = tokenSymbolWorkarounds(chain.id)?.symbols
+            const tokenSymbolWorkaroundDecimals = tokenSymbolWorkarounds(chain.id)?.decimals
+            const tokenSymbolWorkaroundIndexes = tokenSymbolWorkarounds(chain.id)?.indexes
+
+            const tokenSymbol = tokenSymbolWorkaroundSymbols || chainTokenSymbol
+            const tokenDecimals = tokenSymbolWorkaroundDecimals || chainTokenDecimals
+
             const tokenSymbolDef = (metadata.asLatest.lookup?.types || []).find(
               ({ type }) => type.path.slice(-1).toString() === 'TokenSymbol'
             )
-            const tokenSymbolVariants = (tokenSymbolDef?.type?.def?.asVariant?.variants.toJSON() || []) as Array<{
-              name: string
-              index: number
-            }>
+            const tokenSymbolVariants = tokenSymbolWorkaroundIndexes
+              ? tokenSymbolWorkaroundIndexes
+              : ((tokenSymbolDef?.type?.def?.asVariant?.variants.toJSON() || []) as Array<{
+                  name: string
+                  index: number
+                }>)
             const tokenIndexLookup = Object.fromEntries(tokenSymbolVariants.map(({ name, index }) => [name, index]))
 
             const existingTokens = (
@@ -259,26 +269,27 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
               })
             ).filter((token) => token.squidImplementationDetail.isTypeOf === 'OrmlToken')
             const deletedTokensMap = Object.fromEntries(existingTokens.map((token) => [token.id, token]))
-            await Promise.all(
-              (Array.isArray(tokenSymbol) ? tokenSymbol : []).map(async (symbol: string, index: number) => {
-                const tokenIndex = tokenIndexLookup[symbol]
-                if (tokenIndex === undefined) return
+            for (const [index, symbol] of (Array.isArray(tokenSymbol) ? tokenSymbol : []).entries()) {
+              const tokenIndex = tokenIndexLookup[symbol]
+              if (tokenIndex === undefined) continue
 
-                const token = await getOrCreateToken(store, OrmlToken, ormlTokenId(chain.id, symbol))
-                delete deletedTokensMap[token.id]
+              const token = await getOrCreateToken(store, OrmlToken, ormlTokenId(chain.id, symbol))
+              delete deletedTokensMap[token.id]
 
-                token.symbol = symbol
-                token.decimals = tokenDecimals[index]
-                // token.existentialDeposit = null
-                token.index = tokenIndex
-                token.chain = chain.id
+              token.symbol = symbol
+              token.decimals = tokenDecimals[index]
+              // token.existentialDeposit = null
+              token.index = tokenIndex
+              token.chain = chain.id
 
-                await saveToken(store, token)
-              })
-            )
+              await saveToken(store, token)
+            }
             for (const deletedToken of Object.values(deletedTokensMap)) {
               await store.remove(deletedToken)
             }
+
+            // re-load chain with new token relations so we don't set them back to null again
+            chain = await getOrCreate(store, Chain, chain.id)
 
             const existentialDepositCodec = metadata.asLatest.pallets
               .find((pallet: any) => pallet.name.eq('Balances'))
@@ -307,7 +318,8 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
             chain.nativeToken = await getOrCreate(store, Token, nativeToken.id)
             chain.tokensCurrencyIdIndex = tokensCurrencyIdIndex
 
-            return chain
+            await store.save(chain)
+            return
           } catch (error) {
             console.warn(chain.id, `attempt ${attempt} failed`, error)
           } finally {
@@ -322,11 +334,10 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
         // ran out of attempts
         console.warn(chain.id, `all attempts (${maxAttempts}) failed`)
         chain.isHealthy = false
-        return chain
+
+        await store.save(chain)
       })
     )
-
-    await store.save(chainUpdates)
   },
 
   async function updateEvmNetworksFromGithub({ store }) {

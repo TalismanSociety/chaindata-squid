@@ -38,9 +38,9 @@ export async function getOrCreateToken<T extends { id: string; isTestnet: boolea
   id: string
 ): Promise<T> {
   const tokenEntity = await getOrCreate(store, Token, id)
-  const newToken = new tokenConstructor()
 
   if (!(tokenEntity.squidImplementationDetail instanceof tokenConstructor)) {
+    const newToken = new tokenConstructor()
     newToken.id = id
     newToken.isTestnet = false
     return newToken
@@ -74,9 +74,11 @@ export async function saveToken(store: Store, token: SquidImplementationDetail) 
   } else {
     // update implementation detail reverse lookups
     tokenEntity.squidImplementationDetailChain =
-      'chain' in token && token.chain ? await getOrCreate(store, Chain, token.chain) : null
+      'chain' in token && typeof token.chain === 'string' ? await getOrCreate(store, Chain, token.chain) : null
     tokenEntity.squidImplementationDetailEvmNetwork =
-      'evmNetwork' in token && token.evmNetwork ? await getOrCreate(store, EvmNetwork, token.evmNetwork) : null
+      'evmNetwork' in token && typeof token.evmNetwork === 'string'
+        ? await getOrCreate(store, EvmNetwork, token.evmNetwork)
+        : null
   }
 
   tokenEntity.squidImplementationDetail = token
@@ -160,4 +162,13 @@ export function sortChainsAndNetworks(chains: Chain[], evmNetworks: EvmNetwork[]
       if (chainOrNetwork.entity.sortIndex !== index + 1) chainOrNetwork.entity.sortIndex = index + 1
       return chainOrNetwork.entity
     })
+}
+
+export function tokenSymbolWorkarounds(
+  chainId: string
+): { symbols: string[]; decimals: number[]; indexes: Array<{ name: string; index: number }> } | undefined {
+  return {
+    mangata: { symbols: ['MGX'], decimals: [18], indexes: [{ name: 'MGX', index: 0 }] },
+    // 'gm-rococo': [{ name: 'TODO', index: TODO }, { name: 'TODO', index: TODO }],
+  }[chainId]
 }
