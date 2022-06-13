@@ -170,11 +170,18 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
             let socket: WsProvider | null = null
             try {
               const autoConnectMs = 0
-              socket = new WsProvider(rpc.url, autoConnectMs, {
-                // our extension will send this header with every request
-                // some RPCs reject this header, in which case we want to set isHealthy to false
-                Origin: 'chrome-extension://abpofhpcakjhnpklgodncneklaobppdc',
-              })
+              socket = new WsProvider(
+                rpc.url,
+                autoConnectMs,
+                {
+                  // our extension will send this header with every request
+                  // some RPCs reject this header, in which case we want to set isHealthy to false
+                  Origin: 'chrome-extension://abpofhpcakjhnpklgodncneklaobppdc',
+                },
+                // doesn't matter what this is as long as it's a bit larger than chainRpcTimeout
+                // if it's not set then `new WsProvider` will throw an uncatchable error after 60s
+                chainRpcTimeout * 99
+              )
 
               // fetch genesis hash
               await sendWithTimeout(socket, [['chain_getBlockHash', [0]]], chainRpcTimeout)
@@ -204,11 +211,18 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
           // try to connect to chain
           let socket: WsProvider | null = null
           try {
-            socket = new WsProvider(healthyRpcUrls[(attempt - 1) % healthyRpcUrls.length], 0, {
-              // our extension will send this header with every request
-              // some RPCs reject this header, in which case we want to set isHealthy to false
-              Origin: 'chrome-extension://abpofhpcakjhnpklgodncneklaobppdc',
-            })
+            socket = new WsProvider(
+              healthyRpcUrls[(attempt - 1) % healthyRpcUrls.length],
+              0,
+              {
+                // our extension will send this header with every request
+                // some RPCs reject this header, in which case we want to set isHealthy to false
+                Origin: 'chrome-extension://abpofhpcakjhnpklgodncneklaobppdc',
+              },
+              // doesn't matter what this is as long as it's a bit larger than chainRpcTimeout
+              // if it's not set then `new WsProvider` will throw an uncatchable error after 60s
+              chainRpcTimeout * 99
+            )
 
             // fetch rpc data
             const [genesisHash, runtimeVersion, metadataRpc, chainName, chainProperties] = await sendWithTimeout(
