@@ -204,6 +204,7 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
         // set chain unhealthy if there are no healthy rpcs
         const healthyRpcUrls = chain.rpcs.filter(({ isHealthy }) => isHealthy).map(({ url }) => url)
         chain.isHealthy = healthyRpcUrls.length > 0
+        await store.save(chain)
 
         // fetch chaindata from healthy rpcs
         const maxAttempts = healthyRpcUrls.length * 2
