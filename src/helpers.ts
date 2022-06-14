@@ -164,11 +164,16 @@ export function sortChainsAndNetworks(chains: Chain[], evmNetworks: EvmNetwork[]
     })
 }
 
-export function tokenSymbolWorkarounds(
-  chainId: string
-): { symbols: string[]; decimals: number[]; indexes: Array<{ name: string; index: number }> } | undefined {
+export function tokenSymbolWorkarounds(chainId: string):
+  | {
+      currencyId?: number | null
+      symbols: string[]
+      decimals: number[]
+      indexes: Array<{ name: string; index: number }>
+    }
+  | undefined {
   return {
-    mangata: { symbols: ['MGX'], decimals: [18], indexes: [{ name: 'MGX', index: 0 }] },
+    mangata: { currencyId: null, symbols: ['MGX'], decimals: [18], indexes: [{ name: 'MGX', index: 0 }] },
     // 'gm-rococo': [{ name: 'TODO', index: TODO }, { name: 'TODO', index: TODO }],
   }[chainId]
 }

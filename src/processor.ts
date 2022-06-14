@@ -249,6 +249,11 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
             })
             const metadata: Metadata = createMetadata(registry, metadataRpc)
 
+            const tokenSymbolWorkaroundCurrencyId = tokenSymbolWorkarounds(chain.id)?.currencyId
+            const tokenSymbolWorkaroundSymbols = tokenSymbolWorkarounds(chain.id)?.symbols
+            const tokenSymbolWorkaroundDecimals = tokenSymbolWorkarounds(chain.id)?.decimals
+            const tokenSymbolWorkaroundIndexes = tokenSymbolWorkarounds(chain.id)?.indexes
+
             const currencyIdDef = (metadata.asLatest.lookup?.types || []).find(
               ({ type }) => type.path.slice(-1).toString() === 'CurrencyId' && type?.def?.isVariant
             )
@@ -257,11 +262,10 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
               index: number
             }>
             const currencyIdLookup = Object.fromEntries(currencyIdVariants.map(({ name, index }) => [name, index]))
-            const tokensCurrencyIdIndex = currencyIdLookup['Token']
-
-            const tokenSymbolWorkaroundSymbols = tokenSymbolWorkarounds(chain.id)?.symbols
-            const tokenSymbolWorkaroundDecimals = tokenSymbolWorkarounds(chain.id)?.decimals
-            const tokenSymbolWorkaroundIndexes = tokenSymbolWorkarounds(chain.id)?.indexes
+            const tokensCurrencyIdIndex =
+              tokenSymbolWorkaroundCurrencyId !== undefined
+                ? tokenSymbolWorkaroundCurrencyId
+                : currencyIdLookup['Token']
 
             const tokenSymbol = tokenSymbolWorkaroundSymbols || chainTokenSymbol
             const tokenDecimals = tokenSymbolWorkaroundDecimals || chainTokenDecimals
