@@ -58,7 +58,7 @@ const coingeckoCurrencies: Array<NonFunctionPropertyNames<TokenRates>> = [
   // 'dot',
 ]
 
-// chain is set to unhealthy if no RPC responds before this timeout
+// chain rpc is set to unhealthy if it doesn't respond before this timeout
 const chainRpcTimeout = 120_000 // 120_000ms = 120 seconds = 2 minutes timeout on RPC requests
 
 processor.setBatchSize(500)
@@ -169,7 +169,7 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
             // try to connect to rpc
             let socket: WsProvider | null = null
             try {
-              const autoConnectMs = 0
+              const autoConnectMs = 500
               socket = new WsProvider(
                 rpc.url,
                 autoConnectMs,
@@ -190,10 +190,11 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
               rpc.isHealthy = true
             } catch (error) {
               // set unhealthy
+              console.warn(chain.id, 'rpc', rpc.url, 'is down', error)
               rpc.isHealthy = false
             } finally {
               try {
-                socket !== null && socket.disconnect()
+                socket !== null && (await socket.disconnect())
               } catch (error) {
                 console.error('Disconnect error', error)
               }
@@ -212,9 +213,10 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
           // try to connect to chain
           let socket: WsProvider | null = null
           try {
+            const autoConnectMs = 500
             socket = new WsProvider(
               healthyRpcUrls[(attempt - 1) % healthyRpcUrls.length],
-              0,
+              autoConnectMs,
               {
                 // our extension will send this header with every request
                 // some RPCs reject this header, in which case we want to set isHealthy to false
@@ -343,7 +345,7 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
             console.warn(chain.id, `attempt ${attempt} failed`, error)
           } finally {
             try {
-              socket !== null && socket.disconnect()
+              socket !== null && (await socket.disconnect())
             } catch (error) {
               console.error('Disconnect error', error)
             }

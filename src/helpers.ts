@@ -110,17 +110,19 @@ export function sendWithTimeout(socket: WsProvider, requests: Array<[string, any
       _reject(reason)
     }
 
-    if (socket === null) return reject('no socket')
-    socket.on('error', () => reject('socket error'))
+    try {
+      if (socket === null) return reject('no socket')
+      socket.on('error', () => reject('socket error'))
+      socket.on('disconnected', () => reject('socket closed'))
 
-    setTimeout(() => !done && reject('timeout'), timeout)
+      setTimeout(() => !done && reject('socket timeout reached'), timeout)
 
-    await socket.connect()
-    await socket.isReady
+      await socket.isReady
 
-    const results = await Promise.all(requests.map(([method, params = []]) => socket.send(method, params)))
-
-    resolve(results)
+      resolve(await Promise.all(requests.map(([method, params = []]) => socket.send(method, params))))
+    } catch (error) {
+      reject(error as any)
+    }
   })
 }
 
