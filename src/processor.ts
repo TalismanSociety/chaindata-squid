@@ -17,6 +17,7 @@ import {
   sendWithTimeout,
   sortChainsAndNetworks,
   tokenSymbolWorkarounds,
+  twox64Concat,
 } from './helpers'
 import {
   Chain,
@@ -62,7 +63,7 @@ const coingeckoCurrencies: Array<NonFunctionPropertyNames<TokenRates>> = [
 const chainRpcTimeout = 120_000 // 120_000ms = 120 seconds = 2 minutes timeout on RPC requests
 
 processor.setBatchSize(500)
-processor.setBlockRange({ from: 10_710_000 })
+processor.setBlockRange({ from: 10_760_000 })
 processor.setDataSource({
   chain: 'wss://rpc.polkadot.io',
   archive: lookupArchive('polkadot')[0].url,
@@ -251,11 +252,6 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
             })
             const metadata: Metadata = createMetadata(registry, metadataRpc)
 
-            const tokenSymbolWorkaroundCurrencyId = tokenSymbolWorkarounds(chain.id)?.currencyId
-            const tokenSymbolWorkaroundSymbols = tokenSymbolWorkarounds(chain.id)?.symbols
-            const tokenSymbolWorkaroundDecimals = tokenSymbolWorkarounds(chain.id)?.decimals
-            const tokenSymbolWorkaroundIndexes = tokenSymbolWorkarounds(chain.id)?.indexes
-
             const currencyIdDef = (metadata.asLatest.lookup?.types || []).find(
               ({ type }) => type.path.slice(-1).toString() === 'CurrencyId' && type?.def?.isVariant
             )
@@ -264,24 +260,24 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
               index: number
             }>
             const currencyIdLookup = Object.fromEntries(currencyIdVariants.map(({ name, index }) => [name, index]))
-            const tokensCurrencyIdIndex =
-              tokenSymbolWorkaroundCurrencyId !== undefined
-                ? tokenSymbolWorkaroundCurrencyId
-                : currencyIdLookup['Token']
-
-            const tokenSymbol = tokenSymbolWorkaroundSymbols || chainTokenSymbol
-            const tokenDecimals = tokenSymbolWorkaroundDecimals || chainTokenDecimals
+            const tokensCurrencyIdIndex = currencyIdLookup['Token']
 
             const tokenSymbolDef = (metadata.asLatest.lookup?.types || []).find(
               ({ type }) => type.path.slice(-1).toString() === 'TokenSymbol'
             )
-            const tokenSymbolVariants = tokenSymbolWorkaroundIndexes
-              ? tokenSymbolWorkaroundIndexes
-              : ((tokenSymbolDef?.type?.def?.asVariant?.variants.toJSON() || []) as Array<{
-                  name: string
-                  index: number
-                }>)
-            const tokenIndexLookup = Object.fromEntries(tokenSymbolVariants.map(({ name, index }) => [name, index]))
+            const tokenSymbolVariants = (tokenSymbolDef?.type?.def?.asVariant?.variants.toJSON() || []) as Array<{
+              name: string
+              index: number
+            }>
+            const tokenStateKeyLookup = Object.fromEntries(
+              tokenSymbolVariants
+                .map(({ name, index }) => [name, new Uint8Array([tokensCurrencyIdIndex || 0, index])] as const)
+                .map(([name, stateKey]) => [name, twox64Concat(stateKey)])
+            )
+
+            const tokenSymbol = tokenSymbolWorkarounds(chain.id)?.symbols || chainTokenSymbol
+            const tokenDecimals = tokenSymbolWorkarounds(chain.id)?.decimals || chainTokenDecimals
+            const tokenStateKeys = tokenSymbolWorkarounds(chain.id)?.stateKeys || tokenStateKeyLookup
 
             const existingTokens = (
               await store.find(Token, {
@@ -291,8 +287,8 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
             ).filter((token) => token.squidImplementationDetail.isTypeOf === 'OrmlToken')
             const deletedTokensMap = Object.fromEntries(existingTokens.map((token) => [token.id, token]))
             for (const [index, symbol] of (Array.isArray(tokenSymbol) ? tokenSymbol : []).entries()) {
-              const tokenIndex = tokenIndexLookup[symbol]
-              if (tokenIndex === undefined) continue
+              const stateKey = tokenStateKeys[symbol]
+              if (stateKey === undefined) continue
 
               const token = await getOrCreateToken(store, OrmlToken, ormlTokenId(chain.id, symbol))
               delete deletedTokensMap[token.id]
@@ -300,7 +296,7 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
               token.symbol = symbol
               token.decimals = tokenDecimals[index]
               // token.existentialDeposit = null
-              token.index = tokenIndex
+              token.stateKey = stateKey
               token.chain = chain.id
 
               await saveToken(store, token)
@@ -337,7 +333,6 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
             chain.specName = specName
             chain.specVersion = specVersion
             chain.nativeToken = await getOrCreate(store, Token, nativeToken.id)
-            chain.tokensCurrencyIdIndex = tokensCurrencyIdIndex
 
             await store.save(chain)
             return

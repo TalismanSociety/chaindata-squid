@@ -78,12 +78,6 @@ export class Chain {
   nativeToken!: Token | undefined | null
 
   /**
-   * if this chain has orml tokens, this is the index of CurrencyId::Token used for identifying them on-chain. this index is needed for fetching orml token balances
-   */
-  @Column_("int4", {nullable: true})
-  tokensCurrencyIdIndex!: number | undefined | null
-
-  /**
    * other tokens on this chain
    */
   @OneToMany_(() => Token, e => e.squidImplementationDetailChain)

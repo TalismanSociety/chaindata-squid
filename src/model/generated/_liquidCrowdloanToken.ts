@@ -11,7 +11,7 @@ export class LiquidCrowdloanToken {
   private _decimals!: number | undefined | null
   private _coingeckoId!: string | undefined | null
   private _rates!: TokenRates | undefined | null
-  private _index!: number | undefined | null
+  private _stateKey!: string | undefined | null
   private _chain!: string | undefined | null
 
   constructor(props?: Partial<Omit<LiquidCrowdloanToken, 'toJSON'>>, json?: any) {
@@ -23,7 +23,7 @@ export class LiquidCrowdloanToken {
       this._decimals = json.decimals == null ? undefined : marshal.int.fromJSON(json.decimals)
       this._coingeckoId = json.coingeckoId == null ? undefined : marshal.string.fromJSON(json.coingeckoId)
       this._rates = json.rates == null ? undefined : new TokenRates(undefined, json.rates)
-      this._index = json.index == null ? undefined : marshal.int.fromJSON(json.index)
+      this._stateKey = json.stateKey == null ? undefined : marshal.string.fromJSON(json.stateKey)
       this._chain = json.chain == null ? undefined : marshal.string.fromJSON(json.chain)
     }
   }
@@ -97,14 +97,14 @@ export class LiquidCrowdloanToken {
   }
 
   /**
-   * on-chain liquidcrowdloan index for this token
+   * the on-chain orml TokenId used to identify this token
    */
-  get index(): number | undefined | null {
-    return this._index
+  get stateKey(): string | undefined | null {
+    return this._stateKey
   }
 
-  set index(value: number | undefined | null) {
-    this._index = value
+  set stateKey(value: string | undefined | null) {
+    this._stateKey = value
   }
 
   /**
@@ -127,7 +127,7 @@ export class LiquidCrowdloanToken {
       decimals: this.decimals,
       coingeckoId: this.coingeckoId,
       rates: this.rates == null ? undefined : this.rates.toJSON(),
-      index: this.index,
+      stateKey: this.stateKey,
       chain: this.chain,
     }
   }

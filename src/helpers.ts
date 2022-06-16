@@ -1,4 +1,7 @@
 import { WsProvider } from '@polkadot/api'
+import { TypeRegistry, createType } from '@polkadot/types'
+import { u8aConcat, u8aToHex, u8aToU8a } from '@polkadot/util'
+import { xxhashAsU8a } from '@polkadot/util-crypto'
 import { Store } from '@subsquid/substrate-processor'
 
 import {
@@ -168,14 +171,29 @@ export function sortChainsAndNetworks(chains: Chain[], evmNetworks: EvmNetwork[]
 
 export function tokenSymbolWorkarounds(chainId: string):
   | {
-      currencyId?: number | null
       symbols: string[]
       decimals: number[]
-      indexes: Array<{ name: string; index: number }>
+      stateKeys: { [key: string]: `0x${string}` }
     }
   | undefined {
   return {
-    mangata: { currencyId: null, symbols: ['MGX'], decimals: [18], indexes: [{ name: 'MGX', index: 0 }] },
-    // 'gm-rococo': [{ name: 'TODO', index: TODO }, { name: 'TODO', index: TODO }],
+    mangata: {
+      symbols: ['MGX'],
+      decimals: [18],
+      stateKeys: { MGX: twox64Concat(createType(new TypeRegistry(), 'u32', '0').toU8a()) },
+    },
+    // 'gm-rococo': {
+    //   symbols: ['GM', 'GN'],
+    //   decimals: [18, 18],
+    //   stateKeys: {
+    //     GM: twox64Concat(createType(new TypeRegistry(), 'u32', '0').toU8a()),
+    //     GN: twox64Concat(createType(new TypeRegistry(), 'u32', '1').toU8a()),
+    //   },
+    // },
   }[chainId]
+}
+
+const bitLength = 64
+export function twox64Concat(input: string | Buffer | Uint8Array): `0x${string}` {
+  return u8aToHex(u8aConcat(xxhashAsU8a(input, bitLength), u8aToU8a(input)))
 }

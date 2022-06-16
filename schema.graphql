@@ -32,9 +32,6 @@ type Chain @entity {
   "native token for this chain"
   nativeToken: Token
 
-  "if this chain has orml tokens, this is the index of CurrencyId::Token used for identifying them on-chain. this index is needed for fetching orml token balances"
-  tokensCurrencyIdIndex: Int
-
   "other tokens on this chain"
   tokens: [Token!]! @derivedFrom(field: "squidImplementationDetailChain")
 
@@ -186,8 +183,8 @@ type OrmlToken implements IToken {
   "minimum tokens per account"
   existentialDeposit: BigInt
 
-  "the on-chain TokenSymbol index of this token"
-  index: Int
+  "the on-chain orml TokenId used to identify this token"
+  stateKey: String
 
   "substrate chain this token is an orml token on"
   chain: Chain
@@ -207,8 +204,8 @@ type LiquidCrowdloanToken implements IToken {
   "fiat/btc/eth/dot rates for this token"
   rates: TokenRates
 
-  "on-chain liquidcrowdloan index for this token"
-  index: Int
+  "the on-chain orml TokenId used to identify this token"
+  stateKey: String
 
   "substrate chain this token is on"
   chain: Chain
