@@ -1,11 +1,11 @@
 import { WsProvider } from '@polkadot/api'
-import { Metadata } from '@polkadot/types'
+import { Metadata, TypeRegistry } from '@polkadot/types'
 import { hexToBn } from '@polkadot/util'
 import { lookupArchive } from '@subsquid/archive-registry'
 import { BlockHandlerContext, SubstrateProcessor } from '@subsquid/substrate-processor'
-import { createMetadata, getRegistry } from '@substrate/txwrapper-polkadot'
 import axios from 'axios'
 import { startCase } from 'lodash'
+import pMap from 'p-map'
 
 import {
   erc20TokenId,
@@ -58,6 +58,8 @@ const coingeckoCurrencies: Array<NonFunctionPropertyNames<TokenRates>> = [
   // 'eth',
   // 'dot',
 ]
+
+const processSubstrateChainsConcurrency = 20
 
 // chain rpc is set to unhealthy if it doesn't respond before this timeout
 const chainRpcTimeout = 120_000 // 120_000ms = 120 seconds = 2 minutes timeout on RPC requests
@@ -162,8 +164,11 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
   async function updateChainData({ store }) {
     const chains = await store.find(Chain, { loadRelationIds: { disableMixedMap: true } })
 
-    await Promise.all(
-      chains.map(async (chain): Promise<void> => {
+    await pMap(
+      chains,
+      async (chain, index): Promise<void> => {
+        console.log(`Updating chain ${index + 1} of ${chains.length} (${chain.id})`)
+
         // get health status of rpcs
         await Promise.all(
           chain.rpcs.map(async (rpc) => {
@@ -196,6 +201,7 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
             } finally {
               try {
                 socket !== null && (await socket.disconnect())
+                socket = null
               } catch (error) {
                 console.error('Disconnect error', error)
               }
@@ -244,13 +250,8 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
             // deconstruct rpc data
             const { specName, specVersion, implName } = runtimeVersion
             const { ss58Format, tokenDecimals: chainTokenDecimals, tokenSymbol: chainTokenSymbol } = chainProperties
-            const registry = getRegistry({
-              specName,
-              specVersion,
-              metadataRpc,
-              chainName,
-            })
-            const metadata: Metadata = createMetadata(registry, metadataRpc)
+            const registry = new TypeRegistry()
+            const metadata: Metadata = new Metadata(registry, metadataRpc)
 
             const currencyIdDef = (metadata.asLatest.lookup?.types || []).find(
               ({ type }) => type.path.slice(-1).toString() === 'CurrencyId' && type?.def?.isVariant
@@ -341,6 +342,7 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
           } finally {
             try {
               socket !== null && (await socket.disconnect())
+              socket = null
             } catch (error) {
               console.error('Disconnect error', error)
             }
@@ -352,7 +354,8 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
         chain.isHealthy = false
 
         await store.save(chain)
-      })
+      },
+      { concurrency: processSubstrateChainsConcurrency }
     )
   },
 
