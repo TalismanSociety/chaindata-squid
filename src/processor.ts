@@ -136,7 +136,7 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
       delete deletedChainIdsMap[githubChain.id]
 
       const chain = await getOrCreate(store, Chain, githubChain.id)
-      const relay = githubChain.relay?.id ? await getOrCreate(store, Chain, githubChain.relay.id) : null
+      const relay = githubChain.relay?.id ? await store.get(Chain, githubChain.relay.id) : null
 
       // set values
       chain.isTestnet = githubChain.isTestnet || false
