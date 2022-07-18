@@ -65,7 +65,7 @@ const processSubstrateChainsConcurrency = 20
 const chainRpcTimeout = 120_000 // 120_000ms = 120 seconds = 2 minutes timeout on RPC requests
 
 processor.setBatchSize(500)
-processor.setBlockRange({ from: 11_133_000 })
+processor.setBlockRange({ from: 11_200_000 })
 processor.setDataSource({
   chain: 'wss://rpc.polkadot.io',
   archive: lookupArchive('polkadot')[0].url,
@@ -535,15 +535,12 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
   },
 
   async function updateTokensFromGithub({ store }) {
+    const { githubTokens } = processorSharedData
+
+    // rename / set coingeckoId for tokens
     const isRenameOrCoingeckoId = (token: GithubToken) =>
       typeof token.id !== 'undefined' &&
       (typeof token.coingeckoId !== 'undefined' || typeof token.symbol !== 'undefined')
-
-    const isErc20 = (token: GithubToken) =>
-      typeof token.contractAddress !== 'undefined' && typeof token.evmNetworkId !== 'undefined'
-
-    const { githubTokens } = processorSharedData
-
     for (const renameOrCoingeckoId of githubTokens.filter(isRenameOrCoingeckoId)) {
       const tokenEntity = await store.get(Token, {
         where: { id: renameOrCoingeckoId.id },
@@ -558,6 +555,9 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
       await saveToken(store, token)
     }
 
+    // add preconfigured erc20 tokens
+    const isErc20 = (token: GithubToken) =>
+      typeof token.contractAddress !== 'undefined' && typeof token.evmNetworkId !== 'undefined'
     const existingErc20Tokens = (await store.find(Token, { loadRelationIds: { disableMixedMap: true } })).filter(
       (token) => token.squidImplementationDetail.isTypeOf === 'Erc20Token'
     )
@@ -627,38 +627,19 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
   async function updateTokenRates({ store }) {
     const tokens = await store.find(Token, { loadRelationIds: { disableMixedMap: true } })
 
-    // get coingecko ids from coingecko via token symbols
-    const coingeckoList: Array<{ id: string; symbol: string; name: string }> = await axios
-      .get(`${coingeckoApiUrl}/coins/list`)
-      .then((response) => response.data)
-
-    const coingeckoIdIndex = Object.fromEntries(coingeckoList.reverse().map((coin) => [coin.id, coin]))
-    const coingeckoSymbolIndex = Object.fromEntries(
-      coingeckoList.reverse().map((coin) => [coin.symbol.toUpperCase(), coin])
-    )
-
-    // a few favourites
-    coingeckoSymbolIndex.DOT = coingeckoIdIndex.polkadot
-    coingeckoSymbolIndex.KSM = coingeckoIdIndex.kusama
-
-    const fetchCoingeckoIds = tokens
+    const coingeckoIds = tokens
       .map((token) => {
         if (token.squidImplementationDetail.isTestnet) return
+        if (!token.squidImplementationDetail.coingeckoId) return
 
-        const lookupSymbol = token.squidImplementationDetail.symbol?.toUpperCase()
-        if (lookupSymbol && token.squidImplementationDetail.coingeckoId === undefined)
-          token.squidImplementationDetail.coingeckoId = coingeckoSymbolIndex[lookupSymbol]?.id
-
-        return [token.squidImplementationDetail.coingeckoId]
+        return token.squidImplementationDetail.coingeckoId
       })
-      .filter(Boolean)
+      .filter((id): id is NonNullable<typeof id> => Boolean(id))
 
-    const fetchCoingeckoIdsSerialized = fetchCoingeckoIds.join(',')
-    const coingeckoCurrenciesSerialized = coingeckoCurrencies.join(',')
+    const idsSerialized = coingeckoIds.join(',')
+    const currenciesSerialized = coingeckoCurrencies.join(',')
     const coingeckoPrices: Record<string, Record<string, number>> = await axios
-      .get(
-        `${coingeckoApiUrl}/simple/price?ids=${fetchCoingeckoIdsSerialized}&vs_currencies=${coingeckoCurrenciesSerialized}`
-      )
+      .get(`${coingeckoApiUrl}/simple/price?ids=${idsSerialized}&vs_currencies=${currenciesSerialized}`)
       .then((response) => response.data)
 
     const updatedTokens = tokens.map((token) => {
