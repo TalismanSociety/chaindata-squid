@@ -12,16 +12,16 @@
     "processor:dev-start": "npm run build && node --inspect -r dotenv/config lib/processor.js",
     "processor:start": "node lib/processor.js",
     "query-node:start": "squid-graphql-server",
-    "release:hash": "sqd squid release chaindata@`git rev-parse --short HEAD`",
-    "release:test": "sqd squid release chaindata@test --source git@github.com:TalismanSociety/chaindata-squid.git",
+    "release:hash": "sqd squid release chaindata@`git rev-parse --short HEAD` --source git@github.com:TalismanSociety/chaindata-squid.git#`git rev-parse --short HEAD`",
+    "release:test": "sqd squid release chaindata@test --source git@github.com:TalismanSociety/chaindata-squid.git#main",
     "release:latest": "sqd squid release chaindata@latest --source git@github.com:TalismanSociety/chaindata-squid.git#latest-lifesupport",
-    "release:next": "sqd squid release chaindata@next --source git@github.com:TalismanSociety/chaindata-squid.git",
-    "update:test": "sqd squid update chaindata@test --source git@github.com:TalismanSociety/chaindata-squid.git",
-    "update:test:resetdb": "sqd squid update chaindata@test --source git@github.com:TalismanSociety/chaindata-squid.git --hardReset",
+    "release:next": "sqd squid release chaindata@next --source git@github.com:TalismanSociety/chaindata-squid.git#main",
+    "update:test": "sqd squid update chaindata@test --source git@github.com:TalismanSociety/chaindata-squid.git#main",
+    "update:test:resetdb": "sqd squid update chaindata@test --source git@github.com:TalismanSociety/chaindata-squid.git#main --hardReset",
     "update:latest": "sqd squid update chaindata@latest --source git@github.com:TalismanSociety/chaindata-squid.git#latest-lifesupport",
     "update:latest:resetdb": "sqd squid update chaindata@latest --source git@github.com:TalismanSociety/chaindata-squid.git#latest-lifesupport --hardReset",
-    "update:next": "sqd squid update chaindata@next --source git@github.com:TalismanSociety/chaindata-squid.git",
-    "update:next:resetdb": "sqd squid update chaindata@next --source git@github.com:TalismanSociety/chaindata-squid.git --hardReset"
+    "update:next": "sqd squid update chaindata@next --source git@github.com:TalismanSociety/chaindata-squid.git#main",
+    "update:next:resetdb": "sqd squid update chaindata@next --source git@github.com:TalismanSociety/chaindata-squid.git#main --hardReset"
   },
   "dependencies": {
     "@polkadot/api": "^8.4.2",
