@@ -1,5 +1,5 @@
 import { WsProvider } from '@polkadot/api'
-import { Metadata, TypeRegistry } from '@polkadot/types'
+import { Metadata, TypeRegistry, decorateConstants } from '@polkadot/types'
 import { hexToBn } from '@polkadot/util'
 import { lookupArchive } from '@subsquid/archive-registry'
 import { BlockHandlerContext, SubstrateProcessor } from '@subsquid/substrate-processor'
@@ -250,8 +250,13 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
             // deconstruct rpc data
             const { specName, specVersion, implName } = runtimeVersion
             const { ss58Format, tokenDecimals: chainTokenDecimals, tokenSymbol: chainTokenSymbol } = chainProperties
+
             const registry = new TypeRegistry()
             const metadata: Metadata = new Metadata(registry, metadataRpc)
+            metadata.registry.setMetadata(metadata)
+
+            const constants = decorateConstants(metadata.registry, metadata.asLatest, metadata.version)
+            const ss58Prefix = metadata.registry.chainSS58
 
             const currencyIdDef = (metadata.asLatest.lookup?.types || []).find(
               ({ type }) => type.path.slice(-1).toString() === 'CurrencyId' && type?.def?.isVariant
@@ -309,14 +314,8 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
             // re-load chain with new token relations so we don't set them back to null again
             chain = await getOrCreate(store, Chain, chain.id)
 
-            const existentialDepositCodec = metadata.asLatest.pallets
-              .find((pallet: any) => pallet.name.eq('Balances'))
-              ?.constants.find((constant: any) => constant.name.eq('ExistentialDeposit'))?.value
-            const existentialDeposit = existentialDepositCodec
-              ? hexToBn(existentialDepositCodec.toHex(), {
-                  isLe: true,
-                  isNegative: false,
-                }).toString()
+            const existentialDeposit = constants?.balances?.existentialDeposit
+              ? constants.balances.existentialDeposit.toString()
               : null
 
             const nativeTokenSymbol = Array.isArray(tokenSymbol) ? tokenSymbol[0] : tokenSymbol
@@ -328,7 +327,8 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
 
             // set values
             chain.genesisHash = genesisHash
-            chain.prefix = typeof ss58Format === 'number' ? ss58Format : 42
+            chain.prefix =
+              typeof ss58Prefix === 'number' ? ss58Prefix : typeof ss58Format === 'number' ? ss58Format : 42
             chain.chainName = chainName
             chain.implName = implName
             chain.specName = specName
