@@ -153,6 +153,10 @@ export function sortChainsAndNetworks(chains: Chain[], evmNetworks: EvmNetwork[]
         if (a.isTestnet) return 1
         if (b.isTestnet) return -1
       }
+      if (a.id === 'westend-testnet') return -1
+      if (b.id === 'westend-testnet') return 1
+      if (a.id === 'rococo-testnet') return -1
+      if (b.id === 'rococo-testnet') return 1
 
       const aCmp = _a.isChain ? a.id : a.name?.toLowerCase() || parseInt(a.id)
       const bCmp = _b.isChain ? b.id : b.name?.toLowerCase() || parseInt(b.id)
