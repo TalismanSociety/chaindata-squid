@@ -130,20 +130,8 @@ export function sendWithTimeout(socket: WsProvider, requests: Array<[string, any
 }
 
 export function sortChainsAndNetworks(chains: Chain[], evmNetworks: EvmNetwork[]): Array<Chain | EvmNetwork> {
-  return [
-    ...chains.map((chain): { entity: Chain; isChain: true } => ({
-      entity: chain,
-      isChain: true,
-    })),
-    ...evmNetworks.map((evmNetwork): { entity: EvmNetwork; isChain: false } => ({
-      entity: evmNetwork,
-      isChain: false,
-    })),
-  ]
-    .sort((_a, _b) => {
-      const a = _a.entity
-      const b = _b.entity
-
+  return [...chains, ...evmNetworks]
+    .sort((a, b) => {
       if (a.id === b.id) return 0
       if (a.id === 'polkadot') return -1
       if (b.id === 'polkadot') return 1
@@ -158,8 +146,8 @@ export function sortChainsAndNetworks(chains: Chain[], evmNetworks: EvmNetwork[]
       if (a.id === 'rococo-testnet') return -1
       if (b.id === 'rococo-testnet') return 1
 
-      const aCmp = _a.isChain ? a.id : a.name?.toLowerCase() || parseInt(a.id)
-      const bCmp = _b.isChain ? b.id : b.name?.toLowerCase() || parseInt(b.id)
+      const aCmp = a.name?.toLowerCase() || parseInt(a.id)
+      const bCmp = b.name?.toLowerCase() || parseInt(b.id)
 
       if (typeof aCmp === 'number' && typeof bCmp === 'number') return aCmp - bCmp
       if (typeof aCmp === 'number') return 1
@@ -168,8 +156,8 @@ export function sortChainsAndNetworks(chains: Chain[], evmNetworks: EvmNetwork[]
       return aCmp.localeCompare(bCmp)
     })
     .map((chainOrNetwork, index) => {
-      if (chainOrNetwork.entity.sortIndex !== index + 1) chainOrNetwork.entity.sortIndex = index + 1
-      return chainOrNetwork.entity
+      if (chainOrNetwork.sortIndex !== index + 1) chainOrNetwork.sortIndex = index + 1
+      return chainOrNetwork
     })
 }
 
