@@ -2,7 +2,7 @@ import { WsProvider } from '@polkadot/api'
 import { TypeRegistry, createType } from '@polkadot/types'
 import { u8aConcat, u8aToHex, u8aToU8a } from '@polkadot/util'
 import { xxhashAsU8a } from '@polkadot/util-crypto'
-import { Store } from '@subsquid/substrate-processor'
+import { EntityManager, FindOptionsWhere } from 'typeorm'
 
 import {
   Chain,
@@ -18,12 +18,12 @@ import {
 } from './model'
 
 export async function getOrCreate<T extends { id: string }>(
-  store: Store,
+  store: EntityManager,
   entityConstructor: { new (...args: any[]): T },
   id: string
 ): Promise<T> {
-  let entity = await store.get<T>(entityConstructor, {
-    where: { id },
+  let entity = await store.findOne<T>(entityConstructor, {
+    where: { id } as FindOptionsWhere<T>,
     loadRelationIds: { disableMixedMap: true },
   })
 
@@ -36,7 +36,7 @@ export async function getOrCreate<T extends { id: string }>(
 }
 
 export async function getOrCreateToken<T extends { id: string; isTestnet: boolean; isTypeOf: string }>(
-  store: Store,
+  store: EntityManager,
   tokenConstructor: { new (...args: any[]): T },
   id: string
 ): Promise<T> {
@@ -52,7 +52,7 @@ export async function getOrCreateToken<T extends { id: string; isTestnet: boolea
   return tokenEntity.squidImplementationDetail
 }
 
-export async function saveToken(store: Store, token: SquidImplementationDetail) {
+export async function saveToken(store: EntityManager, token: SquidImplementationDetail) {
   const tokenEntity = await getOrCreate(store, Token, token.id)
 
   if (token.isTypeOf === 'NativeToken') {

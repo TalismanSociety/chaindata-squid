@@ -1,7 +1,16 @@
-/node_modules
-/lib
+# dependencies
+node_modules
 
-/kusamaVersions.json
+# subsquid
+/lib
+/**Versions.json
+/**Versions.jsonl
 
 # IDE files
 /.idea
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*

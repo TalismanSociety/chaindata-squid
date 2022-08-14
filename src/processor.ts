@@ -1,11 +1,12 @@
 import { WsProvider } from '@polkadot/api'
 import { Metadata, TypeRegistry, decorateConstants } from '@polkadot/types'
-import { hexToBn } from '@polkadot/util'
 import { lookupArchive } from '@subsquid/archive-registry'
 import { BlockHandlerContext, SubstrateProcessor } from '@subsquid/substrate-processor'
+import { FullTypeormDatabase } from '@subsquid/typeorm-store'
 import axios from 'axios'
 import { startCase } from 'lodash'
 import pMap from 'p-map'
+import { EntityManager } from 'typeorm'
 
 import {
   erc20TokenId,
@@ -31,8 +32,6 @@ import {
   TokenRates,
 } from './model'
 import { GithubChain, GithubEvmNetwork, GithubToken, NonFunctionPropertyNames } from './types'
-
-const processor = new SubstrateProcessor('chaindata')
 
 const numBlocksPerExecution = 50 // only run every 50 blocks ≈ 5 minutes at 6s / block
 const skipBlocksOlderThan = 86_400_000 // 86,400 seconds = skip execution for any blocks older than 24 hours
@@ -64,15 +63,16 @@ const processSubstrateChainsConcurrency = 20
 // chain rpc is set to unhealthy if it doesn't respond before this timeout
 const chainRpcTimeout = 120_000 // 120_000ms = 120 seconds = 2 minutes timeout on RPC requests
 
+const processor = new SubstrateProcessor(new FullTypeormDatabase())
 processor.setBatchSize(500)
 processor.setBlockRange({ from: 11_600_000 })
 processor.setDataSource({
   chain: 'wss://rpc.polkadot.io',
-  archive: lookupArchive('polkadot')[0].url,
+  archive: lookupArchive('polkadot', { release: 'FireSquid' }),
 })
 
 processor.addPostHook(async (context) => {
-  const { block } = context
+  const { block, log } = context
 
   const blockHeight = block.height
   const blockTimestamp = block.timestamp
@@ -83,16 +83,16 @@ processor.addPostHook(async (context) => {
   // skip blocks older than n
   if (Date.now() - blockTimestamp > skipBlocksOlderThan) return
 
-  console.debug(`Executing on block ${blockHeight}: block is recent and a multiple of ${numBlocksPerExecution}`)
+  log.debug(`Executing on block ${blockHeight}: block is recent and a multiple of ${numBlocksPerExecution}`)
 
   for (const [index, executeStep] of processorSteps.entries()) {
-    console.log(`Executing step ${index + 1}:`, startCase(executeStep.name))
+    log.info(`Executing step ${index + 1}: ${startCase(executeStep.name)}`)
     await executeStep(context)
   }
 })
 
 // indexer breaks if we don't subscribe to at least one type of event in addition to the postBlock hook
-processor.addEventHandler('balances.Transfer', async () => {})
+processor.addEventHandler('Balances.Transfer', async () => {})
 
 // run the processor on start
 processor.run()
@@ -107,7 +107,7 @@ const processorSharedData: {
   githubTokens: GithubToken[]
 } = { githubChains: [], githubEvmNetworks: [], githubTokens: [] }
 
-const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
+const processorSteps: Array<(context: BlockHandlerContext<EntityManager>) => Promise<void>> = [
   async function fetchDataFromGithub() {
     // fetch chains, evmNetworks and tokens from chaindata github repo
     const [githubChains, githubEvmNetworks, githubTokens] = await Promise.all([
@@ -138,7 +138,7 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
       delete deletedChainIdsMap[githubChain.id]
 
       const chain = await getOrCreate(store, Chain, githubChain.id)
-      const relay = githubChain.relay?.id ? await store.get(Chain, githubChain.relay.id) : null
+      const relay = githubChain.relay?.id ? await store.findOne(Chain, { where: { id: githubChain.relay.id } }) : null
 
       // set values
       chain.isTestnet = githubChain.isTestnet || false
@@ -161,13 +161,13 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
     if (deletedChainIds.length > 0) await store.delete(Chain, deletedChainIds)
   },
 
-  async function updateChainData({ store }) {
+  async function updateChainData({ store, log }) {
     const chains = await store.find(Chain, { loadRelationIds: { disableMixedMap: true } })
 
     await pMap(
       chains,
       async (chain, index): Promise<void> => {
-        console.log(`Updating chain ${index + 1} of ${chains.length} (${chain.id})`)
+        log.info(`Updating chain ${index + 1} of ${chains.length} (${chain.id})`)
 
         // get health status of rpcs
         await Promise.all(
@@ -196,14 +196,14 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
               rpc.isHealthy = true
             } catch (error) {
               // set unhealthy
-              console.warn(chain.id, 'rpc', rpc.url, 'is down', error)
+              log.warn(`${chain.id} rpc ${rpc.url} is down ${JSON.stringify(error)}`)
               rpc.isHealthy = false
             } finally {
               try {
                 socket !== null && (await socket.disconnect())
                 socket = null
               } catch (error) {
-                console.error('Disconnect error', error)
+                log.error(`Disconnect error ${JSON.stringify(error)}`)
               }
             }
           })
@@ -287,7 +287,7 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
 
             const existingTokens = (
               await store.find(Token, {
-                where: { squidImplementationDetailChain: chain.id },
+                where: { squidImplementationDetailChain: { id: chain.id } },
                 loadRelationIds: { disableMixedMap: true },
               })
             ).filter((token) => token.squidImplementationDetail.isTypeOf === 'OrmlToken')
@@ -338,19 +338,19 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
             await store.save(chain)
             return
           } catch (error) {
-            console.warn(chain.id, `attempt ${attempt} failed`, error)
+            log.warn(`${chain.id} attempt ${attempt} failed ${JSON.stringify(error)}`)
           } finally {
             try {
               socket !== null && (await socket.disconnect())
               socket = null
             } catch (error) {
-              console.error('Disconnect error', error)
+              log.error(`Disconnect error ${JSON.stringify(error)}`)
             }
           }
         }
 
         // ran out of attempts
-        console.warn(chain.id, `all attempts (${maxAttempts}) failed`)
+        log.warn(`${chain.id} all attempts (${maxAttempts}) failed`)
         chain.isHealthy = false
 
         await store.save(chain)
@@ -385,7 +385,7 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
     const githubEvmNetworks = processorSharedData.githubEvmNetworks
     const standaloneEvmNetworks = await Promise.all(
       githubEvmNetworks.filter(isStandaloneEvmNetwork).map(async (evmNetwork) => {
-        let entity = await store.get(EvmNetwork, {
+        let entity = await store.findOne(EvmNetwork, {
           where: { name: evmNetwork.name },
           loadRelationIds: { disableMixedMap: true },
         })
@@ -405,8 +405,8 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
     const substrateEvmNetworks = (
       await Promise.all(
         githubEvmNetworks.filter(isSubstrateEvmNetwork).map(async (evmNetwork) => {
-          let entity = await store.get(EvmNetwork, {
-            where: { substrateChain: evmNetwork.substrateChainId },
+          let entity = await store.findOne(EvmNetwork, {
+            where: { substrateChain: { id: evmNetwork.substrateChainId } },
             loadRelationIds: { disableMixedMap: true },
           })
           if (!entity) {
@@ -418,7 +418,7 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
           entity.explorerUrl = evmNetwork.explorerUrl
           entity.rpcs = (evmNetwork.rpcs || []).map((url) => new EthereumRpc({ url, isHealthy: false }))
 
-          const substrateChain = await store.get(Chain, {
+          const substrateChain = await store.findOne(Chain, {
             where: { id: evmNetwork.substrateChainId },
             loadRelationIds: { disableMixedMap: true },
           })
@@ -542,7 +542,7 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
       typeof token.id !== 'undefined' &&
       (typeof token.coingeckoId !== 'undefined' || typeof token.symbol !== 'undefined')
     for (const renameOrCoingeckoId of githubTokens.filter(isRenameOrCoingeckoId)) {
-      const tokenEntity = await store.get(Token, {
+      const tokenEntity = await store.findOne(Token, {
         where: { id: renameOrCoingeckoId.id },
         loadRelationIds: { disableMixedMap: true },
       })
@@ -564,8 +564,8 @@ const processorSteps: Array<(context: BlockHandlerContext) => Promise<void>> = [
     const deletedTokensMap = Object.fromEntries(existingErc20Tokens.map((token) => [token.id, token]))
 
     for (const erc20 of githubTokens.filter(isErc20)) {
-      const evmNetwork = await store.get(EvmNetwork, {
-        where: { id: erc20.evmNetworkId },
+      const evmNetwork = await store.findOne(EvmNetwork, {
+        where: { id: erc20.evmNetworkId?.toString() },
         loadRelationIds: { disableMixedMap: true },
       })
       if (!evmNetwork) continue
