@@ -174,14 +174,16 @@ export function tokenSymbolWorkarounds(chainId: string):
       decimals: [18],
       stateKeys: { MGX: twox64Concat(createType(new TypeRegistry(), 'u32', '0').toU8a()) },
     },
-    // 'gm-rococo': {
-    //   symbols: ['GM', 'GN'],
-    //   decimals: [18, 18],
-    //   stateKeys: {
-    //     GM: twox64Concat(createType(new TypeRegistry(), 'u32', '0').toU8a()),
-    //     GN: twox64Concat(createType(new TypeRegistry(), 'u32', '1').toU8a()),
-    //   },
-    // },
+    gm: {
+      symbols: ['FREN', 'GM', 'GN'],
+      decimals: [18, 18, 18],
+      stateKeys: {
+        // Use native for FREN, not orml
+        // FREN: twox64Concat(createType(new TypeRegistry(), 'u32', '0').toU8a()),
+        GM: twox64Concat(createType(new TypeRegistry(), 'u32', '1').toU8a()),
+        GN: twox64Concat(createType(new TypeRegistry(), 'u32', '2').toU8a()),
+      },
+    },
   }[chainId]
 }
 

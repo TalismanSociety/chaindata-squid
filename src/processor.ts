@@ -65,7 +65,7 @@ const processSubstrateChainsConcurrency = 20
 const chainRpcTimeout = 120_000 // 120_000ms = 120 seconds = 2 minutes timeout on RPC requests
 
 processor.setBatchSize(500)
-processor.setBlockRange({ from: 11_250_000 })
+processor.setBlockRange({ from: 11_600_000 })
 processor.setDataSource({
   chain: 'wss://rpc.polkadot.io',
   archive: lookupArchive('polkadot')[0].url,
