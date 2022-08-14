@@ -176,7 +176,7 @@ export function tokenSymbolWorkarounds(chainId: string):
     },
     gm: {
       symbols: ['FREN', 'GM', 'GN'],
-      decimals: [18, 18, 18],
+      decimals: [12, 0, 0],
       stateKeys: {
         // Use native for FREN, not orml
         // FREN: twox64Concat(createType(new TypeRegistry(), 'u32', '0').toU8a()),
