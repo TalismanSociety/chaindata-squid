@@ -180,8 +180,8 @@ export function tokenSymbolWorkarounds(chainId: string):
       stateKeys: {
         // Use native for FREN, not orml
         // FREN: twox64Concat(createType(new TypeRegistry(), 'u32', '0').toU8a()),
-        GM: twox64Concat(createType(new TypeRegistry(), 'u32', '1').toU8a()),
-        GN: twox64Concat(createType(new TypeRegistry(), 'u32', '2').toU8a()),
+        GM: twox64Concat(createType(new TypeRegistry(), 'u8', '1').toU8a()),
+        GN: twox64Concat(createType(new TypeRegistry(), 'u8', '2').toU8a()),
       },
     },
   }[chainId]
