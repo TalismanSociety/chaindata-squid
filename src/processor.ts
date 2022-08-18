@@ -172,38 +172,44 @@ const processorSteps: Array<(context: BlockHandlerContext<EntityManager>) => Pro
         // get health status of rpcs
         await Promise.all(
           chain.rpcs.map(async (rpc) => {
-            // try to connect to rpc
-            let socket: WsProvider | null = null
-            try {
-              const autoConnectMs = 500
-              socket = new WsProvider(
-                rpc.url,
-                autoConnectMs,
-                {
-                  // our extension will send this header with every request
-                  // some RPCs reject this header, in which case we want to set isHealthy to false
-                  Origin: 'chrome-extension://abpofhpcakjhnpklgodncneklaobppdc',
-                },
-                // doesn't matter what this is as long as it's a bit larger than chainRpcTimeout
-                // if it's not set then `new WsProvider` will throw an uncatchable error after 60s
-                chainRpcTimeout * 99
-              )
-
-              // fetch genesis hash
-              await sendWithTimeout(socket, [['chain_getBlockHash', [0]]], chainRpcTimeout)
-
-              // set healthy
-              rpc.isHealthy = true
-            } catch (error) {
-              // set unhealthy
-              log.warn(`${chain.id} rpc ${rpc.url} is down ${JSON.stringify(error)}`)
-              rpc.isHealthy = false
-            } finally {
+            const maxAttempts = 3
+            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+              // try to connect to rpc
+              let socket: WsProvider | null = null
               try {
-                socket !== null && (await socket.disconnect())
-                socket = null
+                const autoConnectMs = 500
+                socket = new WsProvider(
+                  rpc.url,
+                  autoConnectMs,
+                  {
+                    // our extension will send this header with every request
+                    // some RPCs reject this header, in which case we want to set isHealthy to false
+                    Origin: 'chrome-extension://abpofhpcakjhnpklgodncneklaobppdc',
+                  },
+                  // doesn't matter what this is as long as it's a bit larger than chainRpcTimeout
+                  // if it's not set then `new WsProvider` will throw an uncatchable error after 60s
+                  chainRpcTimeout * 99
+                )
+
+                // fetch genesis hash
+                await sendWithTimeout(socket, [['chain_getBlockHash', [0]]], chainRpcTimeout)
+
+                // set healthy
+                rpc.isHealthy = true
+
+                // don't need to try again
+                break
               } catch (error) {
-                log.error(`Disconnect error ${JSON.stringify(error)}`)
+                // set unhealthy
+                log.warn(`${chain.id} rpc ${rpc.url} is down on attempt ${attempt} ${JSON.stringify(error)}`)
+                rpc.isHealthy = false
+              } finally {
+                try {
+                  socket !== null && (await socket.disconnect())
+                  socket = null
+                } catch (error) {
+                  log.error(`Disconnect error ${JSON.stringify(error)}`)
+                }
               }
             }
           })
