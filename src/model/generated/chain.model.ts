@@ -2,6 +2,7 @@ import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, M
 import * as marshal from "./marshal"
 import {Token} from "./token.model"
 import {SubstrateRpc} from "./_substrateRpc"
+import {BalanceModuleMetadata} from "./_balanceModuleMetadata"
 import {EvmNetwork} from "./evmNetwork.model"
 
 @Entity_()
@@ -45,6 +46,12 @@ export class Chain {
    */
   @Column_("text", {nullable: true})
   name!: string | undefined | null
+
+  /**
+   * url of the logo for this chain
+   */
+  @Column_("text", {nullable: true})
+  logo!: string | undefined | null
 
   /**
    * chain-specified name of this chain
@@ -106,6 +113,12 @@ export class Chain {
    */
   @Column_("bool", {nullable: false})
   isHealthy!: boolean
+
+  /**
+   * balance metadata for this chain
+   */
+  @Column_("jsonb", {transformer: {to: obj => obj.map((val: any) => val.toJSON()), from: obj => marshal.fromList(obj, val => new BalanceModuleMetadata(undefined, marshal.nonNull(val)))}, nullable: false})
+  balanceMetadata!: (BalanceModuleMetadata)[]
 
   /**
    * evm networks on this chain

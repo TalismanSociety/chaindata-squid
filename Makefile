@@ -1,5 +1,5 @@
 dev: build migrate
-	@node --inspect -r dotenv/config lib/processor.js
+	@bash -c 'make serve & node --inspect -r dotenv/config lib/processor.js & wait'
 
 
 process: migrate
@@ -7,14 +7,15 @@ process: migrate
 
 
 build: codegen
-	@npm run build
+	@rm -rf lib
+	@tsc
 
 
 serve:
 	@npx squid-graphql-server
 
 create-migration: build
-	@npx squid-typeorm-migration create-migration
+	@npx squid-typeorm-migration generate
 
 migrate: build
 	@npx squid-typeorm-migration apply

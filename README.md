@@ -28,3 +28,9 @@ make dev
 # In another terminal window, run the query node
 make serve
 ```
+
+## How to upgrade project dependencies
+
+```bash
+npx npm-check -u
+```

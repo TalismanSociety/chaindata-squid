@@ -4,18 +4,7 @@ import { u8aConcat, u8aToHex, u8aToU8a } from '@polkadot/util'
 import { xxhashAsU8a } from '@polkadot/util-crypto'
 import { EntityManager, FindOptionsWhere } from 'typeorm'
 
-import {
-  Chain,
-  Erc20Token,
-  EvmNetwork,
-  LiquidCrowdloanToken,
-  LiquidityProviderToken,
-  NativeToken,
-  OrmlToken,
-  SquidImplementationDetail,
-  Token,
-  XcToken,
-} from './model'
+import { Chain, EvmNetwork } from './model'
 
 export async function getOrCreate<T extends { id: string }>(
   store: EntityManager,
@@ -35,71 +24,71 @@ export async function getOrCreate<T extends { id: string }>(
   return entity
 }
 
-export async function getOrCreateToken<T extends { id: string; isTestnet: boolean; isTypeOf: string }>(
-  store: EntityManager,
-  tokenConstructor: { new (...args: any[]): T },
-  id: string
-): Promise<T> {
-  const tokenEntity = await getOrCreate(store, Token, id)
+// export async function getOrCreateToken<T extends { id: string; isTestnet: boolean; isTypeOf: string }>(
+//   store: EntityManager,
+//   tokenConstructor: { new (...args: any[]): T },
+//   id: string
+// ): Promise<T> {
+//   const tokenEntity = await getOrCreate(store, Token, id)
 
-  if (!(tokenEntity.squidImplementationDetail instanceof tokenConstructor)) {
-    const newToken = new tokenConstructor()
-    newToken.id = id
-    newToken.isTestnet = false
-    return newToken
-  }
+//   if (!(tokenEntity.squidImplementationDetail instanceof tokenConstructor)) {
+//     const newToken = new tokenConstructor()
+//     newToken.id = id
+//     newToken.isTestnet = false
+//     return newToken
+//   }
 
-  return tokenEntity.squidImplementationDetail
-}
+//   return tokenEntity.squidImplementationDetail
+// }
 
-export async function saveToken(store: EntityManager, token: SquidImplementationDetail) {
-  const tokenEntity = await getOrCreate(store, Token, token.id)
+// export async function saveToken(store: EntityManager, token: SquidImplementationDetail) {
+//   const tokenEntity = await getOrCreate(store, Token, token.id)
 
-  if (token.isTypeOf === 'NativeToken') {
-    // update implementation detail reverse lookups
-    tokenEntity.squidImplementationDetailChain = null
-    tokenEntity.squidImplementationDetailEvmNetwork = null
+//   if (token.isTypeOf === 'NativeToken') {
+//     // update implementation detail reverse lookups
+//     tokenEntity.squidImplementationDetailChain = null
+//     tokenEntity.squidImplementationDetailEvmNetwork = null
 
-    // TODO: Run this every time a chain's nativeToken reference is changed.
-    // Otherwise we'll store a stale reference here until this token is later modified again.
-    //
-    // WORKING: Update chains, then update tokens.
-    // STALE REFERENCES/HERE BE DRAGONS: Update tokens, then set chain nativeTokens.
+//     // TODO: Run this every time a chain's nativeToken reference is changed.
+//     // Otherwise we'll store a stale reference here until this token is later modified again.
+//     //
+//     // WORKING: Update chains, then update tokens.
+//     // STALE REFERENCES/HERE BE DRAGONS: Update tokens, then set chain nativeTokens.
 
-    // TODO: Add support for forward lookups once https://github.com/subsquid/squid/issues/41 is merged
-    // // update implementation detail forward lookups
-    // token.chain = tokenEntity.squidImplementationDetailNativeToChains
-    //   ? tokenEntity.squidImplementationDetailNativeToChains[0]?.id
-    //   : undefined
-    // token.evmNetwork = tokenEntity.squidImplementationDetailNativeToEvmNetworks
-    //   ? tokenEntity.squidImplementationDetailNativeToEvmNetworks[0]?.id
-    //   : undefined
-  } else {
-    // update implementation detail reverse lookups
-    tokenEntity.squidImplementationDetailChain =
-      'chain' in token && typeof token.chain === 'string' ? await getOrCreate(store, Chain, token.chain) : null
-    tokenEntity.squidImplementationDetailEvmNetwork =
-      'evmNetwork' in token && typeof token.evmNetwork === 'string'
-        ? await getOrCreate(store, EvmNetwork, token.evmNetwork)
-        : null
-  }
+//     // TODO: Add support for forward lookups once https://github.com/subsquid/squid/issues/41 is merged
+//     // // update implementation detail forward lookups
+//     // token.chain = tokenEntity.squidImplementationDetailNativeToChains
+//     //   ? tokenEntity.squidImplementationDetailNativeToChains[0]?.id
+//     //   : undefined
+//     // token.evmNetwork = tokenEntity.squidImplementationDetailNativeToEvmNetworks
+//     //   ? tokenEntity.squidImplementationDetailNativeToEvmNetworks[0]?.id
+//     //   : undefined
+//   } else {
+//     // update implementation detail reverse lookups
+//     tokenEntity.squidImplementationDetailChain =
+//       'chain' in token && typeof token.chain === 'string' ? await getOrCreate(store, Chain, token.chain) : null
+//     tokenEntity.squidImplementationDetailEvmNetwork =
+//       'evmNetwork' in token && typeof token.evmNetwork === 'string'
+//         ? await getOrCreate(store, EvmNetwork, token.evmNetwork)
+//         : null
+//   }
 
-  tokenEntity.squidImplementationDetail = token
-  await store.save(tokenEntity)
-}
+//   tokenEntity.squidImplementationDetail = token
+//   await store.save(tokenEntity)
+// }
 
-export const nativeTokenId = (chainId: Chain['id'], tokenSymbol: NativeToken['symbol']) =>
-  `${chainId}-native-${tokenSymbol}`.toLowerCase()
-export const ormlTokenId = (chainId: Chain['id'], tokenSymbol: OrmlToken['symbol']) =>
-  `${chainId}-orml-${tokenSymbol}`.toLowerCase()
-export const liquidCrowdloanTokenId = (chainId: Chain['id'], tokenSymbol: LiquidCrowdloanToken['symbol']) =>
-  `${chainId}-lc-${tokenSymbol}`.toLowerCase()
-export const liquidityProviderTokenId = (chainId: Chain['id'], tokenSymbol: LiquidityProviderToken['symbol']) =>
-  `${chainId}-lp-${tokenSymbol}`.toLowerCase()
-export const xcTokenId = (chainId: Chain['id'], tokenSymbol: XcToken['symbol']) =>
-  `${chainId}-xc-${tokenSymbol}`.toLowerCase()
-export const erc20TokenId = (evmNetworkId: EvmNetwork['id'], tokenContractAddress: Erc20Token['contractAddress']) =>
-  `${evmNetworkId}-erc20-${tokenContractAddress}`.toLowerCase()
+// export const nativeTokenId = (chainId: Chain['id'], tokenSymbol: NativeToken['symbol']) =>
+//   `${chainId}-native-${tokenSymbol}`.toLowerCase()
+// export const ormlTokenId = (chainId: Chain['id'], tokenSymbol: OrmlToken['symbol']) =>
+//   `${chainId}-orml-${tokenSymbol}`.toLowerCase()
+// export const liquidCrowdloanTokenId = (chainId: Chain['id'], tokenSymbol: LiquidCrowdloanToken['symbol']) =>
+//   `${chainId}-lc-${tokenSymbol}`.toLowerCase()
+// export const liquidityProviderTokenId = (chainId: Chain['id'], tokenSymbol: LiquidityProviderToken['symbol']) =>
+//   `${chainId}-lp-${tokenSymbol}`.toLowerCase()
+// export const xcTokenId = (chainId: Chain['id'], tokenSymbol: XcToken['symbol']) =>
+//   `${chainId}-xc-${tokenSymbol}`.toLowerCase()
+// export const erc20TokenId = (evmNetworkId: EvmNetwork['id'], tokenContractAddress: Erc20Token['contractAddress']) =>
+//   `${evmNetworkId}-erc20-${tokenContractAddress}`.toLowerCase()
 
 export function sendWithTimeout(socket: WsProvider, requests: Array<[string, any?]>, timeout: number): Promise<any[]> {
   return new Promise(async (_resolve, _reject) => {

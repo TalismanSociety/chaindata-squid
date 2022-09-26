@@ -2,6 +2,7 @@ import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, M
 import * as marshal from "./marshal"
 import {Token} from "./token.model"
 import {EthereumRpc} from "./_ethereumRpc"
+import {BalanceModuleMetadata} from "./_balanceModuleMetadata"
 import {Chain} from "./chain.model"
 
 @Entity_()
@@ -35,6 +36,12 @@ export class EvmNetwork {
   name!: string | undefined | null
 
   /**
+   * url of the logo for this network
+   */
+  @Column_("text", {nullable: true})
+  logo!: string | undefined | null
+
+  /**
    * native token for this network
    */
   @Index_()
@@ -64,6 +71,12 @@ export class EvmNetwork {
    */
   @Column_("bool", {nullable: false})
   isHealthy!: boolean
+
+  /**
+   * balance metadata for this network
+   */
+  @Column_("jsonb", {transformer: {to: obj => obj.map((val: any) => val.toJSON()), from: obj => marshal.fromList(obj, val => new BalanceModuleMetadata(undefined, marshal.nonNull(val)))}, nullable: false})
+  balanceMetadata!: (BalanceModuleMetadata)[]
 
   /**
    * substrate chain this evm network runs on

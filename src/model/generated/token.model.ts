@@ -1,6 +1,4 @@
 import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, OneToMany as OneToMany_, ManyToOne as ManyToOne_, Index as Index_} from "typeorm"
-import * as marshal from "./marshal"
-import {SquidImplementationDetail, fromJsonSquidImplementationDetail} from "./_squidImplementationDetail"
 import {Chain} from "./chain.model"
 import {EvmNetwork} from "./evmNetwork.model"
 
@@ -17,10 +15,10 @@ export class Token {
   id!: string
 
   /**
-   * implementation detail, can be removed once https://github.com/subsquid/squid/issues/41 is merged
+   * TODO: Put all token data into here (because we have plugins now)
    */
-  @Column_("jsonb", {transformer: {to: obj => obj.toJSON(), from: obj => fromJsonSquidImplementationDetail(obj)}, nullable: false})
-  squidImplementationDetail!: SquidImplementationDetail
+  @Column_("jsonb", {nullable: true})
+  data!: unknown | undefined | null
 
   /**
    * implementation detail for relation lookups, can be removed once https://github.com/subsquid/squid/issues/41 is merged
