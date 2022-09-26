@@ -11,7 +11,8 @@ export const githubEvmNetworksUrl = `${githubChaindataBaseUrl}/evm-networks.json
 export const githubTokensUrl = `${githubChaindataBaseUrl}/tokens.json`
 export const githubChainLogoUrl = (chainId: string) => `${githubChaindataBaseUrl}/assets/${chainId}/logo.svg`
 export const githubEvmNetworkLogoUrl = (networkId: string) => `${githubChaindataBaseUrl}/assets/${networkId}/logo.svg`
-export const githubTokenLogoUrl = (tokenId: string) => `${githubChaindataBaseUrl}/token-assets/${tokenId}.svg`
+export const githubTokenLogoUrl = (tokenId: string) => `${githubChaindataBaseUrl}/assets-tokens/${tokenId}.svg`
+export const githubUnknownTokenLogoUrl = githubTokenLogoUrl('unknown')
 
 export const balanceModules: any[] = [
   // ExampleModule,
