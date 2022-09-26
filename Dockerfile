@@ -1,10 +1,13 @@
 FROM node:16-alpine AS node
+RUN apk add make
 
 FROM node AS node-with-gyp
 RUN apk add g++ make python3
 
 FROM node-with-gyp AS builder
 WORKDIR /squid
+ADD Makefile .
+ADD schema.graphql .
 ADD package.json .
 ADD package-lock.json .
 RUN npm ci
@@ -23,10 +26,11 @@ WORKDIR /squid
 COPY --from=deps /squid/package.json .
 COPY --from=deps /squid/package-lock.json .
 COPY --from=deps /squid/node_modules node_modules
+COPY --from=builder /squid/Makefile .
+COPY --from=builder /squid/schema.graphql .
 COPY --from=builder /squid/lib lib
 ADD db db
 ADD assets assets
-ADD schema.graphql .
 # TODO: use shorter PROMETHEUS_PORT
 ENV PROCESSOR_PROMETHEUS_PORT 3000
 EXPOSE 3000

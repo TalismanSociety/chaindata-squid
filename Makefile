@@ -2,7 +2,7 @@ dev: build migrate
 	@bash -c 'make serve & node --inspect -r dotenv/config lib/processor.js & wait'
 
 
-process: migrate
+process:
 	@node -r dotenv/config lib/processor.js
 
 

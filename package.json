@@ -3,7 +3,7 @@
   "private": true,
   "scripts": {
     "build": "make build",
-    "db:migrate": "make migrate",
+    "db:migrate": "squid-typeorm-migration apply",
     "processor:dev-start": "make dev",
     "processor:start": "make process",
     "query-node:start": "make serve",
