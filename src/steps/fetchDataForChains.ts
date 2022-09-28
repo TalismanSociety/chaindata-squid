@@ -19,31 +19,38 @@ export async function fetchDataForChains(ctx: BlockHandlerContext<EntityManager>
 
   // pMap lets us run `fetchDataForChain` on all of the chains in parallel,
   // but with a max limit on how many chains we are fetching data for at the same time
-  await pMap(chains, fetchDataForChain, { concurrency })
+  await pMap(
+    chains.map((chain) => chain.id),
+    fetchDataForChain,
+    { concurrency }
+  )
 }
 
 const createDataFetcher =
   (numChains: number) =>
   (ctx: BlockHandlerContext<EntityManager>) =>
-  async (chain: Chain, index: number): Promise<void> => {
+  async (chainId: ChainId, index: number): Promise<void> => {
     const { log } = ctx
 
-    log.info(`Updating chain ${index + 1} of ${numChains} (${chain.id})`)
+    log.info(`Updating chain ${index + 1} of ${numChains} (${chainId})`)
 
     // update health status of rpcs
-    await updateChainRpcHealthStatuses(ctx, chain)
+    await updateChainRpcHealthStatuses(ctx, chainId)
 
     // update health status of chain
     // depends on chain rpc health statuses, so update them first!
-    await updateChainHealthStatus(ctx, chain)
+    await updateChainHealthStatus(ctx, chainId)
 
     // fetch data for chain
     // makes use of the chain rpcs (filtered by health status), so update them first!
-    await updateDataForChain(ctx, chain)
+    await updateDataForChain(ctx, chainId)
   }
 
-const updateChainRpcHealthStatuses = async (ctx: BlockHandlerContext<EntityManager>, chain: Chain) => {
+const updateChainRpcHealthStatuses = async (ctx: BlockHandlerContext<EntityManager>, chainId: ChainId) => {
   const { store } = ctx
+
+  const chain = await store.findOne(Chain, { where: { id: chainId }, loadRelationIds: { disableMixedMap: true } })
+  if (!chain) return
 
   // to save time, rpcs are updated in parallel, not in sequence
   await Promise.all(chain.rpcs.map((rpc) => updateChainRpcHealthStatus(ctx, chain.id, rpc)))
@@ -100,8 +107,11 @@ const updateChainRpcHealthStatus = async (
   }
 }
 
-const updateChainHealthStatus = async (ctx: BlockHandlerContext<EntityManager>, chain: Chain) => {
+const updateChainHealthStatus = async (ctx: BlockHandlerContext<EntityManager>, chainId: ChainId) => {
   const { store } = ctx
+
+  const chain = await store.findOne(Chain, { where: { id: chainId }, loadRelationIds: { disableMixedMap: true } })
+  if (!chain) return
 
   // if any rpcs are healthy: chain is also healthy
   // if no rpcs are healthy: chain is unhealthy
@@ -110,15 +120,18 @@ const updateChainHealthStatus = async (ctx: BlockHandlerContext<EntityManager>, 
   await store.save(chain)
 }
 
-const updateDataForChain = async (ctx: BlockHandlerContext<EntityManager>, chain: Chain) => {
+const updateDataForChain = async (ctx: BlockHandlerContext<EntityManager>, chainId: ChainId) => {
   const { store, log } = ctx
+
+  let chain = await store.findOne(Chain, { where: { id: chainId }, loadRelationIds: { disableMixedMap: true } })
+  if (!chain) return
 
   const rpcs = chain.rpcs.filter(({ isHealthy }) => isHealthy).map(({ url }) => url)
   const maxAttempts = rpcs.length * 2 // attempt each rpc twice, at most
 
   let success = false
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    success = await attemptToUpdateDataForChain(ctx, chain, rpcs[(attempt - 1) % rpcs.length], attempt)
+    ;[success, chain] = await attemptToUpdateDataForChain(ctx, chain, rpcs[(attempt - 1) % rpcs.length], attempt)
 
     // if chain has been successfully updated, exit the loop here
     if (success) break
@@ -138,7 +151,7 @@ const attemptToUpdateDataForChain = async (
   chain: Chain,
   rpcUrl: string,
   attempt: number
-): Promise<boolean> => {
+): Promise<[boolean, Chain]> => {
   const { store, log } = ctx
 
   // try to connect to chain
@@ -196,7 +209,7 @@ const attemptToUpdateDataForChain = async (
     // chain.nativeToken = await getOrCreate(store, Token, nativeToken.id)
 
     // chain was successfully updated!
-    return true
+    return [true, chain]
   } catch (error) {
     log.warn(`${chain.id} attempt ${attempt} failed ${JSON.stringify(error)}`)
   } finally {
@@ -210,7 +223,7 @@ const attemptToUpdateDataForChain = async (
   }
 
   // update was unsuccessful
-  return false
+  return [false, chain]
 }
 
 async function updateChainTokens(ctx: BlockHandlerContext<EntityManager>, socket: WsProvider, chain: Chain) {

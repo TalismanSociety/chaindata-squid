@@ -13,14 +13,13 @@ export async function updateTokensFromGithub({ store }: BlockHandlerContext<Enti
       where: { id: githubToken.id },
       loadRelationIds: { disableMixedMap: true },
     })
-    if (!token) continue
 
-    const data = token.data as any
-    if (data === undefined) continue
+    if (!token || !token.data) continue
 
-    if (githubToken.symbol) (token.data as any).symbol = githubToken.symbol
-    if (githubToken.decimals) (token.data as any).decimals = githubToken.decimals
-    if (githubToken.coingeckoId) (token.data as any).coingeckoId = githubToken.coingeckoId
+    if (typeof githubToken.symbol === 'string') (token.data as any).symbol = githubToken.symbol
+    if (typeof githubToken.decimals === 'number') (token.data as any).decimals = githubToken.decimals
+    if (typeof githubToken.coingeckoId === 'string' || githubToken.coingeckoId === null)
+      (token.data as any).coingeckoId = githubToken.coingeckoId
 
     await store.save(token)
   }
