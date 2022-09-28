@@ -216,7 +216,7 @@ const attemptToUpdateDataForChain = async (
 async function updateChainTokens(ctx: BlockHandlerContext<EntityManager>, socket: WsProvider, chain: Chain) {
   const { store } = ctx
 
-  // TODO: Fix this hack
+  // TODO: Remove this stubChainConnector & stubChaindataProvider hack
   const stubChainConnector = {
     async send<T = any>(
       chainId: ChainId,

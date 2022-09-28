@@ -7,6 +7,7 @@ export type GithubChain = {
   rpcs?: string[]
   paraId?: number
   relay?: { id: string }
+  balanceModuleConfigs?: Record<string, Record<string, unknown>>
 }
 
 export type GithubEvmNetwork = {
@@ -17,6 +18,7 @@ export type GithubEvmNetwork = {
   isTestnet?: true
   explorerUrl?: string
   rpcs?: string[]
+  balanceModuleConfigs?: Record<string, Record<string, unknown>>
 }
 
 export type GithubToken = {

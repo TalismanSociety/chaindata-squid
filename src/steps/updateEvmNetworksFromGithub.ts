@@ -1,10 +1,13 @@
 import { BlockHandlerContext } from '@subsquid/substrate-processor'
+import { ChainConnectorEvm } from '@talismn/chain-connector-evm'
+import { EvmNetwork as ChaindataEvmNetwork, ChaindataProvider } from '@talismn/chaindata-provider'
 import axios from 'axios'
 import { EntityManager } from 'typeorm'
 
-import { Chain, EthereumRpc, EvmNetwork } from '../model'
+import { getOrCreate } from '../helpers'
+import { BalanceModuleMetadata, Chain, EthereumRpc, EvmNetwork, Token } from '../model'
 import { GithubEvmNetwork } from '../types'
-import { githubEvmNetworkLogoUrl } from './_constants'
+import { balanceModules, githubEvmNetworkLogoUrl } from './_constants'
 import { processorSharedData } from './_sharedData'
 
 export async function updateEvmNetworksFromGithub({ store }: BlockHandlerContext<EntityManager>) {
@@ -79,17 +82,22 @@ export async function updateEvmNetworksFromGithub({ store }: BlockHandlerContext
         entity.isTestnet = substrateChain.isTestnet
         entity.name = evmNetwork.name || substrateChain.name
         entity.logo = substrateChain.logo
-        entity.nativeToken = substrateChain.nativeToken
+        // entity.nativeToken = substrateChain.nativeToken
 
         return entity
       })
     )
   ).filter(<T>(evmNetwork: T): evmNetwork is NonNullable<T> => !!evmNetwork)
 
+  const allEvmNetworks = [...standaloneEvmNetworks, ...substrateEvmNetworks]
+
+  // used for balanceMetadata + tokens fetching
+  const chainConnectorEvm = new ChainConnectorEvm()
+
   // get network ids + rpc health statuses
   const evmNetworkUpdates = (
     await Promise.all(
-      [...standaloneEvmNetworks, ...substrateEvmNetworks].map(async (evmNetwork) => {
+      allEvmNetworks.map(async (evmNetwork) => {
         const ethereumIds: Array<string | null> = await Promise.all(
           evmNetwork.rpcs.map(async (rpc) => {
             // try to connect to rpc
@@ -144,26 +152,41 @@ export async function updateEvmNetworksFromGithub({ store }: BlockHandlerContext
 
         if (typeof evmNetwork.id !== 'string') return null
 
+        // if standalone, update the logo (which is based on the id)
+        if (isStandaloneEvmNetwork(evmNetwork)) evmNetwork.logo = githubEvmNetworkLogoUrl(evmNetwork.id)
+
         isStandaloneEvmNetwork(evmNetwork) && delete deletedStandaloneEvmNetworkIdsMap[evmNetwork.id]
         isSubstrateEvmNetwork(evmNetwork) && delete deletedSubstrateEvmNetworkIdsMap[evmNetwork.id]
 
-        // // set up nativeToken for standalone networks
-        // if (isStandaloneEvmNetwork(evmNetwork)) {
-        //   const githubNetwork = githubEvmNetworks
-        //     .filter(isStandaloneEvmNetwork)
-        //     .find((network) => network.name === evmNetwork.name)
-        //   const nativeToken = await getOrCreateToken(
-        //     store,
-        //     NativeToken,
-        //     nativeTokenId(evmNetwork.id, githubNetwork?.symbol || 'ETH')
-        //   )
-        //   nativeToken.symbol = githubNetwork?.symbol || 'ETH'
-        //   nativeToken.decimals = typeof githubNetwork?.decimals === 'number' ? githubNetwork.decimals : 18
-        //   await saveToken(store, nativeToken)
-        //   evmNetwork.nativeToken = await getOrCreate(store, Token, nativeToken.id)
-        // }
+        // TODO: Remove this stubChaindataProvider hack
+        const stubChaindataProvider: ChaindataProvider = {
+          chainIds: () => Promise.resolve([]),
+          chains: () => Promise.resolve({}),
+          getChain: () => Promise.resolve(null),
 
-        // return evmNetwork
+          evmNetworkIds: () => Promise.resolve([evmNetwork.id]),
+          evmNetworks: () => Promise.resolve({ [evmNetwork.id]: evmNetwork as any as ChaindataEvmNetwork }),
+          getEvmNetwork: (evmNetworkId) =>
+            Promise.resolve(evmNetworkId === evmNetwork.id ? (evmNetwork as any as ChaindataEvmNetwork) : null),
+
+          tokenIds: () => Promise.resolve([]),
+          tokens: () => Promise.resolve({}),
+          getToken: () => Promise.resolve(null),
+        }
+
+        // fetch balance metadata for evm networks
+        evmNetwork.balanceMetadata = (
+          await Promise.all(
+            balanceModules.map(async (balanceModule) => [
+              balanceModule.type,
+              await balanceModule.fetchEvmChainMeta(chainConnectorEvm, stubChaindataProvider, evmNetwork.id),
+            ])
+          )
+        )
+          .filter(([moduleType, metadata]) => typeof moduleType === 'string' && metadata)
+          .map(([moduleType, metadata]) => new BalanceModuleMetadata({ moduleType, metadata }))
+
+        return evmNetwork
       })
     )
   ).filter(<T>(evmNetwork: T): evmNetwork is NonNullable<T> => !!evmNetwork)
@@ -176,4 +199,63 @@ export async function updateEvmNetworksFromGithub({ store }: BlockHandlerContext
     ...Object.keys(deletedSubstrateEvmNetworkIdsMap),
   ]
   if (deletedEvmNetworkIds.length > 0) await store.delete(EvmNetwork, deletedEvmNetworkIds)
+
+  // update evm network tokens
+  await Promise.all(
+    allEvmNetworks.map(async (evmNetwork) => {
+      // TODO: Remove this stubChaindataProvider hack
+      const stubChaindataProvider: ChaindataProvider = {
+        chainIds: () => Promise.resolve([]),
+        chains: () => Promise.resolve({}),
+        getChain: () => Promise.resolve(null),
+
+        evmNetworkIds: () => Promise.resolve([evmNetwork.id]),
+        evmNetworks: () => Promise.resolve({ [evmNetwork.id]: evmNetwork as any as ChaindataEvmNetwork }),
+        getEvmNetwork: (evmNetworkId) =>
+          Promise.resolve(evmNetworkId === evmNetwork.id ? (evmNetwork as any as ChaindataEvmNetwork) : null),
+
+        tokenIds: () => Promise.resolve([]),
+        tokens: () => Promise.resolve({}),
+        getToken: () => Promise.resolve(null),
+      }
+
+      const tokens = (
+        await Promise.all(
+          balanceModules
+            .filter((balanceModule) =>
+              evmNetwork.balanceMetadata.find((meta) => meta.moduleType === balanceModule.type)
+            )
+            .map(
+              async (balanceModule) =>
+                await balanceModule.fetchEvmChainTokens(
+                  chainConnectorEvm,
+                  stubChaindataProvider,
+                  evmNetwork.id,
+                  evmNetwork.balanceMetadata.find((meta) => meta.moduleType === balanceModule.type)?.metadata
+                  // TODO: Include module config here
+                )
+            )
+        )
+      ).flatMap((moduleTokens) => Object.values(moduleTokens))
+
+      const existingTokens = await store.find(Token, {
+        where: { squidImplementationDetailEvmNetwork: { id: evmNetwork.id } },
+        loadRelationIds: { disableMixedMap: true },
+      })
+      const deletedTokensMap = Object.fromEntries(existingTokens.map((token) => [token.id, token]))
+      for (const token of tokens) {
+        const tokenEntity = await getOrCreate(store, Token, (token as any)?.id)
+        delete deletedTokensMap[(token as any)?.id]
+
+        tokenEntity.data = token
+        tokenEntity.squidImplementationDetailChain = (token as any)?.chain
+        tokenEntity.squidImplementationDetailEvmNetwork = (token as any)?.evmNetwork
+
+        await store.save(tokenEntity)
+      }
+      for (const deletedToken of Object.values(deletedTokensMap)) {
+        await store.remove(deletedToken)
+      }
+    })
+  )
 }
