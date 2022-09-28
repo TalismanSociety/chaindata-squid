@@ -13,8 +13,6 @@ export type GithubChain = {
 export type GithubEvmNetwork = {
   substrateChainId?: string
   name?: string
-  symbol?: string
-  decimals?: number
   isTestnet?: true
   explorerUrl?: string
   rpcs?: string[]
@@ -26,8 +24,6 @@ export type GithubToken = {
   symbol?: string
   decimals?: number
   coingeckoId?: string | null
-  contractAddress?: string
-  evmNetworkId?: number
 }
 
 // Some handy types from https://www.typescriptlang.org/docs/handbook/advanced-types.html#distributive-conditional-types
