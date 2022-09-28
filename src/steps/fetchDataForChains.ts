@@ -318,8 +318,8 @@ async function updateChainTokens(ctx: BlockHandlerContext<EntityManager>, socket
     delete deletedTokensMap[(token as any)?.id]
 
     tokenEntity.data = token
-    tokenEntity.squidImplementationDetailChain = (token as any)?.chain
-    tokenEntity.squidImplementationDetailEvmNetwork = (token as any)?.evmNetwork
+    tokenEntity.squidImplementationDetailChain = (token as any)?.chain?.id ? (token as any)?.chain : null
+    tokenEntity.squidImplementationDetailEvmNetwork = (token as any)?.evmNetwork?.id ? (token as any)?.evmNetwork : null
 
     await store.save(tokenEntity)
   }

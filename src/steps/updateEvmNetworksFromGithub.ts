@@ -96,13 +96,13 @@ export async function updateEvmNetworksFromGithub({ store }: BlockHandlerContext
     )
   ).filter(<T>(evmNetwork: T): evmNetwork is NonNullable<T> => !!evmNetwork)
 
-  const allEvmNetworks = [...standaloneEvmNetworks, ...substrateEvmNetworks]
+  let allEvmNetworks = [...standaloneEvmNetworks, ...substrateEvmNetworks]
 
   // used for balanceMetadata + tokens fetching
   const chainConnectorEvm = new ChainConnectorEvm()
 
   // get network ids + rpc health statuses
-  const evmNetworkUpdates = (
+  allEvmNetworks = (
     await Promise.all(
       allEvmNetworks.map(async (evmNetwork) => {
         const ethereumIds: Array<string | null> = await Promise.all(
@@ -198,7 +198,7 @@ export async function updateEvmNetworksFromGithub({ store }: BlockHandlerContext
     )
   ).filter(<T>(evmNetwork: T): evmNetwork is NonNullable<T> => !!evmNetwork)
 
-  await store.save(evmNetworkUpdates)
+  await store.save(allEvmNetworks)
 
   const deletedEvmNetworkIds = [
     ...deletedInvalidEvmNetworkIds,
@@ -256,8 +256,10 @@ export async function updateEvmNetworksFromGithub({ store }: BlockHandlerContext
         delete deletedTokensMap[(token as any)?.id]
 
         tokenEntity.data = token
-        tokenEntity.squidImplementationDetailChain = (token as any)?.chain
-        tokenEntity.squidImplementationDetailEvmNetwork = (token as any)?.evmNetwork
+        tokenEntity.squidImplementationDetailChain = (token as any)?.chain?.id ? (token as any)?.chain : null
+        tokenEntity.squidImplementationDetailEvmNetwork = (token as any)?.evmNetwork?.id
+          ? (token as any)?.evmNetwork
+          : null
 
         await store.save(tokenEntity)
       }
