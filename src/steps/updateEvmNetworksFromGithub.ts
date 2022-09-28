@@ -5,7 +5,7 @@ import axios from 'axios'
 import { EntityManager } from 'typeorm'
 
 import { getOrCreate } from '../helpers'
-import { BalanceModuleMetadata, Chain, EthereumRpc, EvmNetwork, Token } from '../model'
+import { BalanceModuleConfig, BalanceModuleMetadata, Chain, EthereumRpc, EvmNetwork, Token } from '../model'
 import { GithubEvmNetwork } from '../types'
 import { balanceModules, githubEvmNetworkLogoUrl } from './_constants'
 import { processorSharedData } from './_sharedData'
@@ -50,6 +50,10 @@ export async function updateEvmNetworksFromGithub({ store }: BlockHandlerContext
       entity.explorerUrl = evmNetwork.explorerUrl
       entity.rpcs = (evmNetwork.rpcs || []).map((url) => new EthereumRpc({ url, isHealthy: false }))
       if (!entity.balanceMetadata) entity.balanceMetadata = []
+      entity.balanceModuleConfigs = Object.entries(evmNetwork.balanceModuleConfigs || {}).map(
+        ([moduleType, moduleConfig]) => new BalanceModuleConfig({ moduleType, moduleConfig })
+      )
+
       entity.substrateChain = null
 
       return entity
@@ -72,6 +76,9 @@ export async function updateEvmNetworksFromGithub({ store }: BlockHandlerContext
         entity.explorerUrl = evmNetwork.explorerUrl
         entity.rpcs = (evmNetwork.rpcs || []).map((url) => new EthereumRpc({ url, isHealthy: false }))
         if (!entity.balanceMetadata) entity.balanceMetadata = []
+        entity.balanceModuleConfigs = Object.entries(evmNetwork.balanceModuleConfigs || {}).map(
+          ([moduleType, moduleConfig]) => new BalanceModuleConfig({ moduleType, moduleConfig })
+        )
 
         const substrateChain = await store.findOne(Chain, {
           where: { id: evmNetwork.substrateChainId },
@@ -231,8 +238,9 @@ export async function updateEvmNetworksFromGithub({ store }: BlockHandlerContext
                   chainConnectorEvm,
                   stubChaindataProvider,
                   evmNetwork.id,
-                  evmNetwork.balanceMetadata.find((meta) => meta.moduleType === balanceModule.type)?.metadata
-                  // TODO: Include module config here
+                  evmNetwork.balanceMetadata.find((meta) => meta.moduleType === balanceModule.type)?.metadata,
+                  evmNetwork.balanceModuleConfigs.find(({ moduleType }) => moduleType === balanceModule.type)
+                    ?.moduleConfig
                 )
             )
         )

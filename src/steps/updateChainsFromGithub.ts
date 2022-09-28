@@ -2,7 +2,7 @@ import { BlockHandlerContext } from '@subsquid/substrate-processor'
 import { EntityManager } from 'typeorm'
 
 import { getOrCreate } from '../helpers'
-import { Chain, SubstrateRpc } from '../model'
+import { BalanceModuleConfig, Chain, SubstrateRpc } from '../model'
 import { githubChainLogoUrl } from './_constants'
 import { processorSharedData } from './_sharedData'
 
@@ -30,6 +30,10 @@ export async function updateChainsFromGithub({ store }: BlockHandlerContext<Enti
     // TODO: Figure out parachains automatically
     chain.paraId = relay !== null && githubChain.paraId ? githubChain.paraId : null
     chain.relay = relay !== null && githubChain.paraId ? relay : null
+
+    chain.balanceModuleConfigs = Object.entries(githubChain.balanceModuleConfigs || {}).map(
+      ([moduleType, moduleConfig]) => new BalanceModuleConfig({ moduleType, moduleConfig })
+    )
 
     // save
     await store.save(chain)

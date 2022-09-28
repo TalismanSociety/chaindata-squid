@@ -3,6 +3,7 @@ import * as marshal from "./marshal"
 import {Token} from "./token.model"
 import {EthereumRpc} from "./_ethereumRpc"
 import {BalanceModuleMetadata} from "./_balanceModuleMetadata"
+import {BalanceModuleConfig} from "./_balanceModuleConfig"
 import {Chain} from "./chain.model"
 
 @Entity_()
@@ -77,6 +78,12 @@ export class EvmNetwork {
    */
   @Column_("jsonb", {transformer: {to: obj => obj.map((val: any) => val.toJSON()), from: obj => marshal.fromList(obj, val => new BalanceModuleMetadata(undefined, marshal.nonNull(val)))}, nullable: false})
   balanceMetadata!: (BalanceModuleMetadata)[]
+
+  /**
+   * balance module configs for this network
+   */
+  @Column_("jsonb", {transformer: {to: obj => obj.map((val: any) => val.toJSON()), from: obj => marshal.fromList(obj, val => new BalanceModuleConfig(undefined, marshal.nonNull(val)))}, nullable: false})
+  balanceModuleConfigs!: (BalanceModuleConfig)[]
 
   /**
    * substrate chain this evm network runs on

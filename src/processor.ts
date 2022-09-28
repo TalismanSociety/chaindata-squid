@@ -18,7 +18,7 @@ const skipBlocksOlderThan = 86_400_000 // 86,400 seconds = skip execution for an
 
 const processor = new SubstrateProcessor(new FullTypeormDatabase())
 processor.setBatchSize(500)
-processor.setBlockRange({ from: 12_100_000 })
+processor.setBlockRange({ from: 12_240_000 })
 processor.setDataSource({
   chain: 'wss://rpc.polkadot.io',
   archive: lookupArchive('polkadot', { release: 'FireSquid' }),

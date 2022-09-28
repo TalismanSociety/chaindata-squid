@@ -288,7 +288,8 @@ async function updateChainTokens(ctx: BlockHandlerContext<EntityManager>, socket
               stubChainConnector as ChainConnector,
               stubChaindataProvider,
               chain.id,
-              chain.balanceMetadata.find((meta) => meta.moduleType === balanceModule.type)?.metadata
+              chain.balanceMetadata.find((meta) => meta.moduleType === balanceModule.type)?.metadata,
+              chain.balanceModuleConfigs.find(({ moduleType }) => moduleType === balanceModule.type)?.moduleConfig
             )
         )
     )

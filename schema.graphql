@@ -53,6 +53,9 @@ type Chain @entity {
   "balance metadata for this chain"
   balanceMetadata: [BalanceModuleMetadata!]!
 
+  "balance module configs for this chain"
+  balanceModuleConfigs: [BalanceModuleConfig!]!
+
   "evm networks on this chain"
   evmNetworks: [EvmNetwork!]! @derivedFrom(field: "substrateChain")
 
@@ -100,6 +103,9 @@ type EvmNetwork @entity {
   "balance metadata for this network"
   balanceMetadata: [BalanceModuleMetadata!]!
 
+  "balance module configs for this network"
+  balanceModuleConfigs: [BalanceModuleConfig!]!
+
   "substrate chain this evm network runs on"
   substrateChain: Chain
 }
@@ -141,4 +147,9 @@ type EthereumRpc {
 type BalanceModuleMetadata {
   moduleType: String!
   metadata: JSON!
+}
+
+type BalanceModuleConfig {
+  moduleType: String!
+  moduleConfig: JSON!
 }
