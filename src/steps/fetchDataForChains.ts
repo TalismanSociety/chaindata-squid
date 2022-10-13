@@ -322,6 +322,10 @@ async function updateChainTokens(ctx: BlockHandlerContext<EntityManager>, socket
     tokenEntity.squidImplementationDetailEvmNetwork = (token as any)?.evmNetwork?.id ? (token as any)?.evmNetwork : null
 
     await store.save(tokenEntity)
+
+    if ((token as any)?.type === 'substrate-native') {
+      await store.update(Chain, { id: chain.id }, { nativeToken: { id: tokenEntity.id } })
+    }
   }
   for (const deletedToken of Object.values(deletedTokensMap)) {
     await store.remove(deletedToken)

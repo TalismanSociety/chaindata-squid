@@ -262,6 +262,10 @@ export async function updateEvmNetworksFromGithub({ store }: BlockHandlerContext
           : null
 
         await store.save(tokenEntity)
+
+        if ((token as any)?.type === 'evm-native') {
+          await store.update(EvmNetwork, { id: evmNetwork.id }, { nativeToken: { id: tokenEntity.id } })
+        }
       }
       for (const deletedToken of Object.values(deletedTokensMap)) {
         await store.remove(deletedToken)
