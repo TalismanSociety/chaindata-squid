@@ -3,16 +3,16 @@ import { EvmNativeModule } from '@talismn/balances-evm-native'
 import { SubNativeModule } from '@talismn/balances-substrate-native'
 import { SubOrmlModule } from '@talismn/balances-substrate-orml'
 
-export const githubChaindataBranch = 'v3'
-export const githubChaindataBaseUrl = `https://raw.githubusercontent.com/TalismanSociety/chaindata/${githubChaindataBranch}`
-export const githubChainsUrl = `${githubChaindataBaseUrl}/chaindata.json`
-export const githubTestnetChainsUrl = `${githubChaindataBaseUrl}/testnets-chaindata.json`
-export const githubEvmNetworksUrl = `${githubChaindataBaseUrl}/evm-networks.json`
-export const githubTokensUrl = `${githubChaindataBaseUrl}/tokens.json`
-export const githubChainLogoUrl = (chainId: string) => `${githubChaindataBaseUrl}/assets/${chainId}/logo.svg`
-export const githubEvmNetworkLogoUrl = (networkId: string) => `${githubChaindataBaseUrl}/assets/${networkId}/logo.svg`
-export const githubTokenLogoUrl = (tokenId: string) => `${githubChaindataBaseUrl}/assets-tokens/${tokenId}.svg`
-export const githubUnknownTokenLogoUrl = githubTokenLogoUrl('unknown')
+export {
+  githubChainsUrl,
+  githubTestnetChainsUrl,
+  githubEvmNetworksUrl,
+  githubTokensUrl,
+  githubChainLogoUrl,
+  githubEvmNetworkLogoUrl,
+  githubTokenLogoUrl,
+  githubUnknownTokenLogoUrl,
+} from '@talismn/chaindata-provider'
 
 export const balanceModules: any[] = [
   // ExampleModule,
