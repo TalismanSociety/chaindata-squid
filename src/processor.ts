@@ -65,7 +65,7 @@ const chainRpcTimeout = 120_000 // 120_000ms = 120 seconds = 2 minutes timeout o
 
 const processor = new SubstrateProcessor(new FullTypeormDatabase())
 processor.setBatchSize(500)
-processor.setBlockRange({ from: 11_660_000 })
+processor.setBlockRange({ from: 12_600_000 })
 processor.setDataSource({
   chain: 'wss://rpc.polkadot.io',
   archive: lookupArchive('polkadot', { release: 'FireSquid' }),
