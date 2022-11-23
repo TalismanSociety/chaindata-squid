@@ -89,6 +89,12 @@ export async function updateEvmNetworksFromGithub({ store }: BlockHandlerContext
         entity.isTestnet = substrateChain.isTestnet
         entity.name = evmNetwork.name || substrateChain.name
         entity.logo = substrateChain.logo
+
+        // let evmNativeConfig = entity.balanceModuleConfigs.find(({moduleType, }) => moduleType === 'evm-native') ?? entity.balanceModuleConfigs
+        // if (!evmNativeConfig) {
+        //   evmNativeConfig = {moduleType: "evm-native", moduleConfig: {symbol: "",decimals: ""}}
+        // }
+        // evmNativeConfig?.moduleConfig
         // entity.nativeToken = substrateChain.nativeToken
 
         return entity
@@ -99,7 +105,7 @@ export async function updateEvmNetworksFromGithub({ store }: BlockHandlerContext
   let allEvmNetworks = [...standaloneEvmNetworks, ...substrateEvmNetworks]
 
   // used for balanceMetadata + tokens fetching
-  const chainConnectorEvm = new ChainConnectorEvm()
+  const chainConnectorEvm = new ChainConnectorEvm({} as any)
 
   // get network ids + rpc health statuses
   allEvmNetworks = (
