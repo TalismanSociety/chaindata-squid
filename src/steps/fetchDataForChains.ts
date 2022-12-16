@@ -227,7 +227,7 @@ const attemptToUpdateDataForChain = async (
 }
 
 async function updateChainTokens(ctx: BlockHandlerContext<EntityManager>, socket: WsProvider, chain: Chain) {
-  const { store } = ctx
+  const { store, log } = ctx
 
   // TODO: Remove this stubChainConnector & stubChaindataProvider hack
   const stubChainConnector = {
@@ -280,11 +280,15 @@ async function updateChainTokens(ctx: BlockHandlerContext<EntityManager>, socket
     await Promise.all(
       balanceModules.map(async (balanceModule) => [
         balanceModule.type,
-        await balanceModule.fetchSubstrateChainMeta(
-          stubChainConnector as ChainConnector,
-          stubChaindataProvider,
-          chain.id
-        ),
+        await balanceModule
+          .fetchSubstrateChainMeta(stubChainConnector as ChainConnector, stubChaindataProvider, chain.id)
+          .catch((error: any) =>
+            log.error(
+              `Failed to set balanceMetadata for chain ${chain.id} module ${balanceModule.type} ${JSON.stringify(
+                error
+              )}`
+            )
+          ),
       ])
     )
   )
