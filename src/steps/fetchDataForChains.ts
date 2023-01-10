@@ -295,6 +295,8 @@ async function updateChainTokens(ctx: BlockHandlerContext<EntityManager>, socket
     .filter(([moduleType, metadata]) => typeof moduleType === 'string' && metadata)
     .map(([moduleType, metadata]) => new BalanceModuleMetadata({ moduleType, metadata }))
 
+  await store.save(chain)
+
   const tokens = (
     await Promise.all(
       balanceModules
