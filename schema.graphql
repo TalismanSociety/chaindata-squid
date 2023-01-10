@@ -153,3 +153,9 @@ type BalanceModuleConfig {
   moduleType: String!
   moduleConfig: JSON!
 }
+
+type CachedCoingeckoLogo @entity {
+  id: ID!
+  url: String!
+  lastUpdated: String!
+}

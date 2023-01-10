@@ -6,7 +6,7 @@ import { EntityManager } from 'typeorm'
 
 import { fetchDataForChains } from './steps/fetchDataForChains'
 import { fetchDataFromGithub } from './steps/fetchDataFromGithub'
-import { setInvalidTokenLogosToChainLogo } from './steps/setInvalidTokenLogosToChainLogo'
+import { setInvalidTokenLogosToCoingeckoOrChainLogo } from './steps/setInvalidTokenLogosToCoingeckoOrChainLogo'
 import { updateChainsFromGithub } from './steps/updateChainsFromGithub'
 import { updateEvmNetworksFromGithub } from './steps/updateEvmNetworksFromGithub'
 import { updateSortIndexes } from './steps/updateSortIndexes'
@@ -17,7 +17,7 @@ const skipBlocksOlderThan = 86_400_000 // 86,400 seconds = skip execution for an
 
 const processor = new SubstrateProcessor(new FullTypeormDatabase())
 processor.setBatchSize(500)
-processor.setBlockRange({ from: 13_675_000 })
+processor.setBlockRange({ from: 13_740_000 })
 processor.setDataSource({
   chain: 'wss://rpc.polkadot.io',
   archive: lookupArchive('polkadot', { release: 'FireSquid' }),
@@ -60,5 +60,5 @@ const processorSteps: Array<(context: BlockHandlerContext<EntityManager>) => Pro
   updateEvmNetworksFromGithub,
   updateSortIndexes,
   updateTokensFromGithub,
-  setInvalidTokenLogosToChainLogo,
+  setInvalidTokenLogosToCoingeckoOrChainLogo,
 ]
