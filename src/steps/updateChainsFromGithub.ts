@@ -11,6 +11,8 @@ export async function updateChainsFromGithub({ store }: BlockHandlerContext<Enti
 
   // add github chains to the db
   for (const githubChain of processorSharedData.githubChains) {
+    if (typeof githubChain?.id !== 'string') continue
+
     // don't delete this chain
     delete deletedChainIdsMap[githubChain.id]
 
