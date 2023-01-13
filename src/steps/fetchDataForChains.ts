@@ -94,14 +94,14 @@ const updateChainRpcHealthStatus = async (
       break
     } catch (error) {
       // set unhealthy
-      log.warn(`${chainId} rpc ${rpc.url} is down on attempt ${attempt} ${JSON.stringify(error)}`)
+      log.warn(`${chainId} rpc ${rpc.url} is down on attempt ${attempt}: ${(error as Error)?.message ?? error}`)
       rpc.isHealthy = false
     } finally {
       try {
         socket !== null && (await socket.disconnect())
         socket = null
       } catch (error) {
-        log.error(`Disconnect error ${JSON.stringify(error)}`)
+        log.error(`Disconnect error: ${(error as Error)?.message ?? error}`)
       }
     }
   }
@@ -211,14 +211,14 @@ const attemptToUpdateDataForChain = async (
     // chain was successfully updated!
     return [true, chain]
   } catch (error) {
-    log.warn(`${chain.id} attempt ${attempt} failed ${JSON.stringify(error)}`)
+    log.warn(`${chain.id} attempt ${attempt} failed: ${(error as Error)?.message ?? error}`)
   } finally {
     // attempt to disconnect socket, but ignore it if it has already been disconnected
     try {
       socket !== null && (await socket.disconnect())
       socket = null
     } catch (error) {
-      log.error(`Disconnect error ${JSON.stringify(error)}`)
+      log.error(`Disconnect error: ${(error as Error)?.message ?? error}`)
     }
   }
 
@@ -281,12 +281,17 @@ async function updateChainTokens(ctx: BlockHandlerContext<EntityManager>, socket
       balanceModules.map(async (balanceModule) => [
         balanceModule.type,
         await balanceModule
-          .fetchSubstrateChainMeta(stubChainConnector as ChainConnector, stubChaindataProvider, chain.id)
+          .fetchSubstrateChainMeta(
+            stubChainConnector as ChainConnector,
+            stubChaindataProvider,
+            chain.id,
+            chain.balanceModuleConfigs.find(({ moduleType }) => moduleType === balanceModule.type)?.moduleConfig
+          )
           .catch((error: any) =>
             log.error(
-              `Failed to set balanceMetadata for chain ${chain.id} module ${balanceModule.type} ${JSON.stringify(
-                error
-              )}`
+              `Failed to set balanceMetadata for chain ${chain.id} module ${balanceModule.type}: ${
+                error?.message ?? error
+              }`
             )
           ),
       ])
@@ -303,13 +308,21 @@ async function updateChainTokens(ctx: BlockHandlerContext<EntityManager>, socket
         .filter((balanceModule) => chain.balanceMetadata.find((meta) => meta.moduleType === balanceModule.type))
         .map(
           async (balanceModule) =>
-            await balanceModule.fetchSubstrateChainTokens(
-              stubChainConnector as ChainConnector,
-              stubChaindataProvider,
-              chain.id,
-              chain.balanceMetadata.find((meta) => meta.moduleType === balanceModule.type)?.metadata,
-              chain.balanceModuleConfigs.find(({ moduleType }) => moduleType === balanceModule.type)?.moduleConfig
-            )
+            await balanceModule
+              .fetchSubstrateChainTokens(
+                stubChainConnector as ChainConnector,
+                stubChaindataProvider,
+                chain.id,
+                chain.balanceMetadata.find((meta) => meta.moduleType === balanceModule.type)?.metadata,
+                chain.balanceModuleConfigs.find(({ moduleType }) => moduleType === balanceModule.type)?.moduleConfig
+              )
+              .catch((error: any) =>
+                log.error(
+                  `Failed to fetch tokens for chain ${chain.id} module ${balanceModule.type}: ${
+                    error?.message ?? error
+                  }`
+                )
+              )
         )
     )
   ).flatMap((moduleTokens) => Object.values(moduleTokens))
