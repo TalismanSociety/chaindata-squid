@@ -192,12 +192,18 @@ export async function updateEvmNetworksFromGithub({ store }: BlockHandlerContext
           await Promise.all(
             balanceModules.map(async (balanceModule) => [
               balanceModule.type,
-              await balanceModule.fetchEvmChainMeta(chainConnectorEvm, stubChaindataProvider, evmNetwork.id),
+              await balanceModule.fetchEvmChainMeta(
+                chainConnectorEvm,
+                stubChaindataProvider,
+                evmNetwork.id,
+                evmNetwork.balanceModuleConfigs.find(({ moduleType }) => moduleType === balanceModule.type)
+                  ?.moduleConfig as any
+              ),
             ])
           )
         )
           .filter(([moduleType, metadata]) => typeof moduleType === 'string' && metadata)
-          .map(([moduleType, metadata]) => new BalanceModuleMetadata({ moduleType, metadata }))
+          .map(([moduleType, metadata]) => new BalanceModuleMetadata({ moduleType: moduleType as string, metadata }))
 
         return evmNetwork
       })
@@ -244,9 +250,9 @@ export async function updateEvmNetworksFromGithub({ store }: BlockHandlerContext
                   chainConnectorEvm,
                   stubChaindataProvider,
                   evmNetwork.id,
-                  evmNetwork.balanceMetadata.find((meta) => meta.moduleType === balanceModule.type)?.metadata,
+                  evmNetwork.balanceMetadata.find((meta) => meta.moduleType === balanceModule.type)?.metadata as any,
                   evmNetwork.balanceModuleConfigs.find(({ moduleType }) => moduleType === balanceModule.type)
-                    ?.moduleConfig
+                    ?.moduleConfig as any
                 )
             )
         )

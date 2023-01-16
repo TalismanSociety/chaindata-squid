@@ -1,7 +1,4 @@
-import { EvmErc20Module } from '@talismn/balances-evm-erc20'
-import { EvmNativeModule } from '@talismn/balances-evm-native'
-import { SubNativeModule } from '@talismn/balances-substrate-native'
-import { SubOrmlModule } from '@talismn/balances-substrate-orml'
+import { balanceModules as defaultBalanceModules } from '@talismn/balances-default-modules'
 
 export {
   githubChainsUrl,
@@ -14,13 +11,7 @@ export {
   githubUnknownTokenLogoUrl,
 } from '@talismn/chaindata-provider'
 
-export const balanceModules: any[] = [
-  // ExampleModule,
-  SubNativeModule,
-  SubOrmlModule,
-  EvmNativeModule,
-  EvmErc20Module,
-]
+export const balanceModules = defaultBalanceModules
 
 export const processSubstrateChainsConcurrency = 20
 

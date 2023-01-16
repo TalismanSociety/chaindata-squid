@@ -285,7 +285,7 @@ async function updateChainTokens(ctx: BlockHandlerContext<EntityManager>, socket
             stubChainConnector as ChainConnector,
             stubChaindataProvider,
             chain.id,
-            chain.balanceModuleConfigs.find(({ moduleType }) => moduleType === balanceModule.type)?.moduleConfig
+            chain.balanceModuleConfigs.find(({ moduleType }) => moduleType === balanceModule.type)?.moduleConfig as any
           )
           .catch((error: any) =>
             log.error(
@@ -298,7 +298,7 @@ async function updateChainTokens(ctx: BlockHandlerContext<EntityManager>, socket
     )
   )
     .filter(([moduleType, metadata]) => typeof moduleType === 'string' && metadata)
-    .map(([moduleType, metadata]) => new BalanceModuleMetadata({ moduleType, metadata }))
+    .map(([moduleType, metadata]) => new BalanceModuleMetadata({ moduleType: moduleType as string, metadata }))
 
   await store.save(chain)
 
@@ -313,8 +313,9 @@ async function updateChainTokens(ctx: BlockHandlerContext<EntityManager>, socket
                 stubChainConnector as ChainConnector,
                 stubChaindataProvider,
                 chain.id,
-                chain.balanceMetadata.find((meta) => meta.moduleType === balanceModule.type)?.metadata,
-                chain.balanceModuleConfigs.find(({ moduleType }) => moduleType === balanceModule.type)?.moduleConfig
+                chain.balanceMetadata.find((meta) => meta.moduleType === balanceModule.type)?.metadata as any,
+                chain.balanceModuleConfigs.find(({ moduleType }) => moduleType === balanceModule.type)
+                  ?.moduleConfig as any
               )
               .catch((error: any) =>
                 log.error(
@@ -325,7 +326,7 @@ async function updateChainTokens(ctx: BlockHandlerContext<EntityManager>, socket
               )
         )
     )
-  ).flatMap((moduleTokens) => Object.values(moduleTokens))
+  ).flatMap((moduleTokens) => Object.values(moduleTokens ?? {}))
 
   const existingTokens = await store.find(Token, {
     where: { squidImplementationDetailChain: { id: chain.id } },
