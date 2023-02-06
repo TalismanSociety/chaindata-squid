@@ -189,3 +189,6 @@ processor:
   #    - name: SECRET_ENV_NAME
 
   cmd: ['node', 'lib/processor']
+scale:
+  api:
+    profile: medium
