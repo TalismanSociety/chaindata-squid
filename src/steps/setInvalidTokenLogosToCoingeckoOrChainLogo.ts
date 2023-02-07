@@ -4,7 +4,7 @@ import uniq from 'lodash/uniq'
 import { EntityManager } from 'typeorm'
 
 import { CachedCoingeckoLogo, Chain, EvmNetwork, Token } from '../model'
-import { githubUnknownTokenLogoUrl } from '../steps/_constants'
+import { githubTokenLogoUrl, githubUnknownTokenLogoUrl } from '../steps/_constants'
 
 export async function setInvalidTokenLogosToCoingeckoOrChainLogo({ store }: BlockHandlerContext<EntityManager>) {
   const chains = await store.find(Chain, { loadRelationIds: { disableMixedMap: true } })
@@ -24,9 +24,19 @@ export async function setInvalidTokenLogosToCoingeckoOrChainLogo({ store }: Bloc
 
         const chainId = data.chain?.id || data.evmNetwork?.id
         const chainLogo = [...chains, ...evmNetworks].find(({ id }) => chainId === id)?.logo
+        const tokenSymbolLogo =
+          typeof data.symbol === 'string' ? githubTokenLogoUrl(data.symbol.toLowerCase().replace(/ /g, '_')) : undefined
 
         // try logo from token's balance module
         if (typeof data.logo === 'string' && data.logo !== chainLogo && data.logo !== githubUnknownTokenLogoUrl) {
+          const resp = await axios.get(data.logo, { validateStatus: () => true })
+          if (resp.status !== 404) return
+        }
+
+        // next try generic token logo (based on symbol)
+        if (typeof tokenSymbolLogo === 'string') {
+          ;(token.data as any).logo = tokenSymbolLogo
+
           const resp = await axios.get(data.logo, { validateStatus: () => true })
           if (resp.status !== 404) return
         }
