@@ -4,16 +4,19 @@ import { GithubChain } from '../types'
 import { githubChainsUrl, githubEvmNetworksUrl, githubTestnetChainsUrl, githubTokensUrl } from './_constants'
 import { processorSharedData } from './_sharedData'
 
+const wtfVersion = 1
+const wtf = `v=wtf${wtfVersion}`
+
 export async function fetchDataFromGithub() {
   // fetch chains, evmNetworks and tokens from chaindata github repo
   const [githubChains, githubTestnetChains, githubEvmNetworks, githubTokens] = await Promise.all([
-    axios.get(githubChainsUrl).then((response) => response.data),
+    axios.get(`${githubChainsUrl}?${wtf}`).then((response) => response.data),
     axios
-      .get(githubTestnetChainsUrl)
+      .get(`${githubTestnetChainsUrl}?${wtf}`)
       .then((response) => response.data)
       .then((data) => data?.map?.((chain: GithubChain) => ({ ...chain, isTestnet: true }))),
-    axios.get(githubEvmNetworksUrl).then((response) => response.data),
-    axios.get(githubTokensUrl).then((response) => response.data),
+    axios.get(`${githubEvmNetworksUrl}?${wtf}`).then((response) => response.data),
+    axios.get(`${githubTokensUrl}?${wtf}`).then((response) => response.data),
   ])
 
   if (!Array.isArray(githubChains) || githubChains.length < 1)
