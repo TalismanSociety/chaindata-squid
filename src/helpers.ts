@@ -21,13 +21,6 @@ export async function getOrCreate<T extends { id: string }>(
   return entity
 }
 
-// export const liquidCrowdloanTokenId = (chainId: Chain['id'], tokenSymbol: LiquidCrowdloanToken['symbol']) =>
-//   `${chainId}-lc-${tokenSymbol}`.toLowerCase()
-// export const liquidityProviderTokenId = (chainId: Chain['id'], tokenSymbol: LiquidityProviderToken['symbol']) =>
-//   `${chainId}-lp-${tokenSymbol}`.toLowerCase()
-// export const xcTokenId = (chainId: Chain['id'], tokenSymbol: XcToken['symbol']) =>
-//   `${chainId}-xc-${tokenSymbol}`.toLowerCase()
-
 export function sendWithTimeout(socket: WsProvider, requests: Array<[string, any?]>, timeout: number): Promise<any[]> {
   return new Promise(async (_resolve, _reject) => {
     let done = false

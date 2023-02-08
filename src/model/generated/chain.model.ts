@@ -104,6 +104,12 @@ export class Chain {
     subscanUrl!: string | undefined | null
 
     /**
+     * latest metadata qr for this chain
+     */
+    @Column_("text", {nullable: true})
+    latestMetadataQrUrl!: string | undefined | null
+
+    /**
      * talisman-defined substrate rpcs for this chain
      */
     @Column_("jsonb", {transformer: {to: obj => obj.map((val: any) => val.toJSON()), from: obj => obj == null ? undefined : marshal.fromList(obj, val => new SubstrateRpc(undefined, marshal.nonNull(val)))}, nullable: false})

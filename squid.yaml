@@ -45,6 +45,7 @@ api:
             }
             account
             subscanUrl
+            latestMetadataQrUrl
             rpcs {
                 url
                 isHealthy

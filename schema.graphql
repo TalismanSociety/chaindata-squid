@@ -44,6 +44,9 @@ type Chain @entity {
   "subscan endpoint for this chain"
   subscanUrl: String
 
+  "latest metadata qr for this chain"
+  latestMetadataQrUrl: String
+
   "talisman-defined substrate rpcs for this chain"
   rpcs: [SubstrateRpc!]!
 
