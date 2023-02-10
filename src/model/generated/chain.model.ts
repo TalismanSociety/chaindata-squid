@@ -104,7 +104,13 @@ export class Chain {
     subscanUrl!: string | undefined | null
 
     /**
-     * latest metadata qr for this chain
+     * chainspec qr url for this chain
+     */
+    @Column_("text", {nullable: true})
+    chainspecQrUrl!: string | undefined | null
+
+    /**
+     * latest metadata qr url for this chain
      */
     @Column_("text", {nullable: true})
     latestMetadataQrUrl!: string | undefined | null

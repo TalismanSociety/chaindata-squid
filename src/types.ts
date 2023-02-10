@@ -4,6 +4,7 @@ export type GithubChain = {
   name?: string
   account?: string
   subscanUrl?: string
+  chainspecQrUrl?: string
   latestMetadataQrUrl?: string
   rpcs?: string[]
   paraId?: number

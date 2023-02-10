@@ -45,6 +45,7 @@ api:
             }
             account
             subscanUrl
+            chainspecQrUrl
             latestMetadataQrUrl
             rpcs {
                 url
