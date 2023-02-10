@@ -4,7 +4,7 @@ import { GithubChain } from '../types'
 import { githubChainsUrl, githubEvmNetworksUrl, githubTestnetChainsUrl, githubTokensUrl } from './_constants'
 import { processorSharedData } from './_sharedData'
 
-const wtfVersion = 1
+const wtfVersion = 2
 const wtf = `v=wtf${wtfVersion}`
 
 export async function fetchDataFromGithub() {
