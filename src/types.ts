@@ -6,6 +6,7 @@ export type GithubChain = {
   subscanUrl?: string
   chainspecQrUrl?: string
   latestMetadataQrUrl?: string
+  overrideNativeTokenId?: string
   rpcs?: string[]
   paraId?: number
   relay?: { id: string }
