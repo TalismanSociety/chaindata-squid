@@ -82,8 +82,7 @@ const extractDominantLogoColor = async (log: Logger, entityType: string, entityI
       )
       const sorted = colors
         .slice()
-        .sort((a, b) => b.intensity - a.intensity)
-        .sort((a, b) => b.area - a.area)
+        .sort((a, b) => b.lightness - a.lightness)
         .map((color) => color.hex)
         .sort((a, b) => tinycolor(b).toHsv().s - tinycolor(a).toHsv().s)
       return sorted[0]
