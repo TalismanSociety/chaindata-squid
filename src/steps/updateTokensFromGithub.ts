@@ -21,6 +21,10 @@ export async function updateTokensFromGithub({ store }: BlockHandlerContext<Enti
     if (typeof githubToken.coingeckoId === 'string' || githubToken.coingeckoId === null)
       (token.data as any).coingeckoId = githubToken.coingeckoId
 
+    // used to override the auto-calculated theme color
+    if (typeof githubToken.themeColor === 'string')
+      processorSharedData.userDefinedThemeColors.tokens.set(githubToken.id, githubToken.themeColor)
+
     await store.save(token)
   }
 }

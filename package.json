@@ -37,9 +37,12 @@
     "@talismn/util": "pr472",
     "axios": "^1.2.1",
     "dotenv": "^16.0.3",
+    "extract-colors": "^2.0.5",
     "lodash": "^4.17.21",
     "p-map": "^4.0.0",
     "pg": "^8.8.0",
+    "sharp": "^0.31.3",
+    "tinycolor2": "^1.6.0",
     "typeorm": "^0.3.11"
   },
   "devDependencies": {
@@ -48,6 +51,8 @@
     "@subsquid/typeorm-codegen": "^0.3.1",
     "@types/lodash": "^4.14.191",
     "@types/node": "^18.11.15",
+    "@types/sharp": "^0.31.1",
+    "@types/tinycolor2": "^1.4.3",
     "import-sort-style-module": "^6.0.0",
     "prettier": "^2.7.1",
     "prettier-plugin-import-sort": "^0.0.7",

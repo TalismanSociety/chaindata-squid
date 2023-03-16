@@ -17,6 +17,9 @@ type Chain @entity {
   "talisman-defined name for this chain"
   name: String
 
+  "a theme color for this chain"
+  themeColor: String
+
   "url of the logo for this chain"
   logo: String
 
@@ -87,6 +90,9 @@ type EvmNetwork @entity {
 
   "talisman-defined name for this network"
   name: String
+
+  "a theme color for this network"
+  themeColor: String
 
   "url of the logo for this network"
   logo: String

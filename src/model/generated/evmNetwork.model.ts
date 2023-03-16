@@ -37,6 +37,12 @@ export class EvmNetwork {
     name!: string | undefined | null
 
     /**
+     * a theme color for this network
+     */
+    @Column_("text", {nullable: true})
+    themeColor!: string | undefined | null
+
+    /**
      * url of the logo for this network
      */
     @Column_("text", {nullable: true})

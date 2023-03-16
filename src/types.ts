@@ -2,6 +2,7 @@ export type GithubChain = {
   id: string
   isTestnet?: true
   name?: string
+  themeColor?: string
   account?: string
   subscanUrl?: string
   chainspecQrUrl?: string
@@ -16,6 +17,7 @@ export type GithubChain = {
 export type GithubEvmNetwork = {
   substrateChainId?: string
   name?: string
+  themeColor?: string
   isTestnet?: true
   explorerUrl?: string
   rpcs?: string[]
@@ -25,6 +27,7 @@ export type GithubEvmNetwork = {
 export type GithubToken = {
   id: string
   symbol?: string
+  themeColor?: string
   decimals?: number
   coingeckoId?: string | null
 }

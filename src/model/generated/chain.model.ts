@@ -49,6 +49,12 @@ export class Chain {
     name!: string | undefined | null
 
     /**
+     * a theme color for this chain
+     */
+    @Column_("text", {nullable: true})
+    themeColor!: string | undefined | null
+
+    /**
      * url of the logo for this chain
      */
     @Column_("text", {nullable: true})

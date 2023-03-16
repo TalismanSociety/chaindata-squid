@@ -33,35 +33,70 @@ export async function updateEvmNetworksFromGithub({ store }: BlockHandlerContext
   )
   const deletedInvalidEvmNetworkIds = storeEvmNetworks.filter(isInvalidEvmNetwork).map(({ id }) => id)
 
+  // we don't know most evm network ids until the second step where we look it up on-chain
+  //
+  // so, this map lets us associate the networks inside `standaloneEvmNetworks`, `substrateEvmNetworks`
+  // and `allEvmNetworks` with their related github configs in `githubEvmNetworks`
+  //
+  // this is needed so that we can extract the user-defined theme-color from the github config for each
+  // network and associate it with the computed network id for use in other processor steps
+  // (namely the addThemeColors step)
+  //
+  // it uses indexes into these arrays as temporary ids
+  //
+  // format:
+  // {
+  //   standalone: Map<array item index inside standaloneEvmNetworks, array item index inside githubEvmNetworks>,
+  //   substrate: Map<array item index inside substrateEvmNetworks, array item index inside githubEvmNetworks>,
+  //   all: Map<array item index inside allEvmNetworks, array item index inside githubEvmNetworks>,
+  // }
+  const githubConfigsByIndex = {
+    standalone: new Map<number, number>(),
+    substrate: new Map<number, number>(),
+    all: new Map<number, number>(),
+  }
+
   const githubEvmNetworks = processorSharedData.githubEvmNetworks
-  const standaloneEvmNetworks = await Promise.all(
-    githubEvmNetworks.filter(isStandaloneEvmNetwork).map(async (evmNetwork) => {
-      let entity = await store.findOne(EvmNetwork, {
-        where: { name: evmNetwork.name },
-        loadRelationIds: { disableMixedMap: true },
+  let standaloneIndex = -1
+  const standaloneEvmNetworks = (
+    await Promise.all(
+      githubEvmNetworks.map(async (evmNetwork, githubIndex) => {
+        if (!isStandaloneEvmNetwork(evmNetwork)) return undefined
+        standaloneIndex++
+        githubConfigsByIndex.standalone.set(standaloneIndex, githubIndex)
+
+        let entity = await store.findOne(EvmNetwork, {
+          where: { name: evmNetwork.name },
+          loadRelationIds: { disableMixedMap: true },
+        })
+        if (!entity) {
+          entity = new EvmNetwork()
+        }
+
+        entity.isTestnet = evmNetwork.isTestnet || false
+        entity.name = evmNetwork.name
+        entity.logo = githubEvmNetworkLogoUrl(entity.id)
+        entity.explorerUrl = evmNetwork.explorerUrl
+        entity.rpcs = (evmNetwork.rpcs || []).map((url) => new EthereumRpc({ url, isHealthy: false }))
+        if (!entity.balanceMetadata) entity.balanceMetadata = []
+        entity.balanceModuleConfigs = Object.entries(evmNetwork.balanceModuleConfigs || {}).map(
+          ([moduleType, moduleConfig]) => new BalanceModuleConfig({ moduleType, moduleConfig })
+        )
+
+        entity.substrateChain = null
+
+        return entity
       })
-      if (!entity) {
-        entity = new EvmNetwork()
-      }
-
-      entity.isTestnet = evmNetwork.isTestnet || false
-      entity.name = evmNetwork.name
-      entity.logo = githubEvmNetworkLogoUrl(entity.id)
-      entity.explorerUrl = evmNetwork.explorerUrl
-      entity.rpcs = (evmNetwork.rpcs || []).map((url) => new EthereumRpc({ url, isHealthy: false }))
-      if (!entity.balanceMetadata) entity.balanceMetadata = []
-      entity.balanceModuleConfigs = Object.entries(evmNetwork.balanceModuleConfigs || {}).map(
-        ([moduleType, moduleConfig]) => new BalanceModuleConfig({ moduleType, moduleConfig })
-      )
-
-      entity.substrateChain = null
-
-      return entity
-    })
-  )
+    )
+  ).filter((network): network is EvmNetwork => network !== undefined)
+  let substrateIndex = -1
   const substrateEvmNetworks = (
     await Promise.all(
-      githubEvmNetworks.filter(isSubstrateEvmNetwork).map(async (evmNetwork) => {
+      githubEvmNetworks.map(async (evmNetwork, githubIndex) => {
+        if (!isSubstrateEvmNetwork(evmNetwork)) return
+        substrateIndex++
+        githubConfigsByIndex.substrate.set(substrateIndex, githubIndex)
+
         let entity = await store.findOne(EvmNetwork, {
           where: { substrateChain: { id: evmNetwork.substrateChainId } },
           loadRelationIds: { disableMixedMap: true },
@@ -84,7 +119,7 @@ export async function updateEvmNetworksFromGithub({ store }: BlockHandlerContext
           where: { id: evmNetwork.substrateChainId },
           loadRelationIds: { disableMixedMap: true },
         })
-        if (!substrateChain) return null
+        if (!substrateChain) return
         entity.substrateChain = substrateChain
         entity.isTestnet = substrateChain.isTestnet
         entity.name = evmNetwork.name || substrateChain.name
@@ -100,9 +135,17 @@ export async function updateEvmNetworksFromGithub({ store }: BlockHandlerContext
         return entity
       })
     )
-  ).filter(<T>(evmNetwork: T): evmNetwork is NonNullable<T> => !!evmNetwork)
+  ).filter((network): network is EvmNetwork => network !== undefined)
 
   let allEvmNetworks = [...standaloneEvmNetworks, ...substrateEvmNetworks]
+  for (const [standaloneIndex, githubIndex] of githubConfigsByIndex.standalone.entries()) {
+    const allIndex = standaloneIndex
+    githubConfigsByIndex.all.set(allIndex, githubIndex)
+  }
+  for (const [substrateIndex, githubIndex] of githubConfigsByIndex.substrate.entries()) {
+    const allIndex = substrateIndex + githubConfigsByIndex.substrate.size
+    githubConfigsByIndex.all.set(allIndex, githubIndex)
+  }
 
   // used for balanceMetadata + tokens fetching
   const chainConnectorEvm = new ChainConnectorEvm({} as any)
@@ -110,7 +153,7 @@ export async function updateEvmNetworksFromGithub({ store }: BlockHandlerContext
   // get network ids + rpc health statuses
   allEvmNetworks = (
     await Promise.all(
-      allEvmNetworks.map(async (evmNetwork) => {
+      allEvmNetworks.map(async (evmNetwork, allIndex) => {
         const ethereumIds: Array<string | null> = await Promise.all(
           evmNetwork.rpcs.map(async (rpc) => {
             // try to connect to rpc
@@ -170,6 +213,14 @@ export async function updateEvmNetworksFromGithub({ store }: BlockHandlerContext
 
         isStandaloneEvmNetwork(evmNetwork) && delete deletedStandaloneEvmNetworkIdsMap[evmNetwork.id]
         isSubstrateEvmNetwork(evmNetwork) && delete deletedSubstrateEvmNetworkIdsMap[evmNetwork.id]
+
+        // set the user-defined theme color (if it exists)
+        // used to override the auto-calculated theme color
+        const githubEvmNetworkIndex = githubConfigsByIndex.all.get(allIndex)
+        const githubEvmNetwork =
+          typeof githubEvmNetworkIndex === 'number' ? githubEvmNetworks[githubEvmNetworkIndex] : undefined
+        if (typeof githubEvmNetwork?.themeColor === 'string')
+          processorSharedData.userDefinedThemeColors.evmNetworks.set(evmNetwork.id, githubEvmNetwork.themeColor)
 
         // TODO: Remove this stubChaindataProvider hack
         const stubChaindataProvider: ChaindataProvider = {

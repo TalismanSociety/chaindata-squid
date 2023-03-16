@@ -39,6 +39,10 @@ export async function updateChainsFromGithub({ store }: BlockHandlerContext<Enti
       ([moduleType, moduleConfig]) => new BalanceModuleConfig({ moduleType, moduleConfig })
     )
 
+    // used to override the auto-calculated theme color
+    if (typeof githubChain.themeColor === 'string')
+      processorSharedData.userDefinedThemeColors.chains.set(githubChain.id, githubChain.themeColor)
+
     // save
     await store.save(chain)
   }

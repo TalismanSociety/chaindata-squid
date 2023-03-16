@@ -4,6 +4,7 @@ import { FullTypeormDatabase } from '@subsquid/typeorm-store'
 import { startCase } from 'lodash'
 import { EntityManager } from 'typeorm'
 
+import { addThemeColors } from './steps/addThemeColors'
 import { applyNativeTokenOverrides } from './steps/applyNativeTokenOverrides'
 import { fetchDataForChains } from './steps/fetchDataForChains'
 import { fetchDataFromGithub } from './steps/fetchDataFromGithub'
@@ -18,7 +19,7 @@ const skipBlocksOlderThan = 86_400_000 // 86,400 seconds = skip execution for an
 
 const processor = new SubstrateProcessor(new FullTypeormDatabase())
 processor.setBatchSize(500)
-processor.setBlockRange({ from: 14_450_000 })
+processor.setBlockRange({ from: 14_670_000 })
 processor.setDataSource({
   chain: 'wss://rpc.polkadot.io',
   archive: lookupArchive('polkadot', { release: 'FireSquid' }),
@@ -63,4 +64,5 @@ const processorSteps: Array<(context: BlockHandlerContext<EntityManager>) => Pro
   updateTokensFromGithub,
   applyNativeTokenOverrides,
   setInvalidTokenLogosToCoingeckoOrChainLogo,
+  addThemeColors,
 ]
