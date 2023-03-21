@@ -7,7 +7,7 @@ import tinycolor from 'tinycolor2'
 import { EntityManager } from 'typeorm'
 
 import { Chain, EvmNetwork, Token } from '../model'
-import { githubUnknownTokenLogoUrl } from './_constants'
+import { githubChainLogoUrl, githubTokenLogoUrl, githubUnknownTokenLogoUrl } from './_constants'
 import { processorSharedData } from './_sharedData'
 
 export async function addThemeColors({ store, log }: BlockHandlerContext<EntityManager>) {
@@ -57,6 +57,12 @@ export async function addThemeColors({ store, log }: BlockHandlerContext<EntityM
 
 const extractDominantLogoColor = async (log: Logger, entityType: string, entityId: string, logoUrl: string) => {
   if (logoUrl === githubUnknownTokenLogoUrl) return '#505050'
+  if (
+    logoUrl === githubChainLogoUrl('karura') ||
+    logoUrl === githubChainLogoUrl('karura-testnet') ||
+    logoUrl === githubTokenLogoUrl('kar')
+  )
+    return '#f93d43'
 
   try {
     const resp = await axios.get(logoUrl, { responseType: 'arraybuffer', validateStatus: () => true })
