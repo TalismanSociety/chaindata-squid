@@ -7,6 +7,7 @@ import tinycolor from 'tinycolor2'
 import { EntityManager } from 'typeorm'
 
 import { Chain, EvmNetwork, Token } from '../model'
+import { githubUnknownTokenLogoUrl } from './_constants'
 import { processorSharedData } from './_sharedData'
 
 export async function addThemeColors({ store, log }: BlockHandlerContext<EntityManager>) {
@@ -55,12 +56,19 @@ export async function addThemeColors({ store, log }: BlockHandlerContext<EntityM
 }
 
 const extractDominantLogoColor = async (log: Logger, entityType: string, entityId: string, logoUrl: string) => {
+  if (logoUrl === githubUnknownTokenLogoUrl) return '#505050'
+
   try {
     const resp = await axios.get(logoUrl, { responseType: 'arraybuffer', validateStatus: () => true })
     if (resp.status === 200) {
       const { data: svgData } = resp
 
-      const [rawData, info] = await new Promise<[Uint8ClampedArray, sharp.OutputInfo]>((resolve, reject) =>
+      // example using @resvg/resvg-js (doesn't work with coingecko pngs)
+      // const resvg = new Resvg(svgData)
+      // const { pixels, width, height } = resvg.render()
+      // const rawData = new Uint8ClampedArray(pixels)
+
+      const [rawData, { width, height }] = await new Promise<[Uint8ClampedArray, sharp.OutputInfo]>((resolve, reject) =>
         sharp(Buffer.from(svgData, 'binary'))
           .toFormat('raw')
           .toBuffer((error, data, info) => {
@@ -70,7 +78,7 @@ const extractDominantLogoColor = async (log: Logger, entityType: string, entityI
       )
 
       const colors = await extractColors(
-        { data: rawData, width: info.width, height: info.height },
+        { data: rawData, width, height },
         {
           pixels: 10000,
           distance: 0.4,
@@ -80,12 +88,16 @@ const extractDominantLogoColor = async (log: Logger, entityType: string, entityI
           lightnessDistance: 0.2,
         }
       )
-      const sorted = colors
-        .slice()
-        .sort((a, b) => b.lightness - a.lightness)
-        .map((color) => color.hex)
-        .sort((a, b) => tinycolor(b).toHsv().s - tinycolor(a).toHsv().s)
-      return sorted[0]
+
+      const mostReadable =
+        colors
+          .map((color) => color.hex)
+          // exclude shades of grey
+          .filter((color) => tinycolor(color).toHsv().s !== 0)
+          // compare to the background color used in the portfolio behind these colors
+          .sort((a, b) => tinycolor.readability('#1a1a1a', b) - tinycolor.readability('#1a1a1a', a))[0] ?? '#ffffff'
+
+      return mostReadable
     }
   } catch (cause) {
     const error = new Error(`Failed to extract themeColor from ${entityType} ${entityId} logo (${logoUrl})`)
