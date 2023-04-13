@@ -1,6 +1,7 @@
 import { BlockHandlerContext } from '@subsquid/substrate-processor'
 import axios from 'axios'
 import uniq from 'lodash/uniq'
+import pMap from 'p-map'
 import { EntityManager } from 'typeorm'
 
 import { CachedCoingeckoLogo, Chain, EvmNetwork, Token } from '../model'
@@ -16,8 +17,9 @@ export async function setInvalidTokenLogosToCoingeckoOrChainLogo({ store }: Bloc
     (await store.find(CachedCoingeckoLogo)).map((coingeckoLogo) => [coingeckoLogo.id, coingeckoLogo])
   )
 
-  await Promise.all(
-    tokens.map(async (token) => {
+  await pMap(
+    tokens,
+    async (token) => {
       try {
         const data = token.data as any
         if (data === undefined) return
@@ -63,7 +65,8 @@ export async function setInvalidTokenLogosToCoingeckoOrChainLogo({ store }: Bloc
       } catch (error) {
         console.error(token.id, (error as any)?.code ? (error as any).code : error)
       }
-    })
+    },
+    { concurrency: 20 }
   )
 
   await store.save(tokens)
