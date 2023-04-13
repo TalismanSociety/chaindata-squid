@@ -1,8 +1,9 @@
 import { WsProvider } from '@polkadot/api'
-import { ProviderInterfaceCallback } from '@polkadot/rpc-provider/types'
+import { ProviderInterface, ProviderInterfaceCallback } from '@polkadot/rpc-provider/types'
 import { Metadata, TypeRegistry } from '@polkadot/types'
 import { BlockHandlerContext } from '@subsquid/substrate-processor'
 import { ChainConnector } from '@talismn/chain-connector'
+import { ChainConnectorEvm } from '@talismn/chain-connector-evm'
 import { ChainId, Chain as ChaindataChain, ChaindataProvider } from '@talismn/chaindata-provider'
 import pMap from 'p-map'
 import { EntityManager } from 'typeorm'
@@ -231,6 +232,10 @@ async function updateChainTokens(ctx: BlockHandlerContext<EntityManager>, socket
 
   // TODO: Remove this stubChainConnector & stubChaindataProvider hack
   const stubChainConnector = {
+    asProvider(chainId: ChainId): ProviderInterface {
+      throw new Error('asProvider method not supported by stub connection')
+    },
+
     async send<T = any>(
       chainId: ChainId,
       method: string,
@@ -246,22 +251,24 @@ async function updateChainTokens(ctx: BlockHandlerContext<EntityManager>, socket
     async subscribe(
       chainId: ChainId,
       subscribeMethod: string,
-      unsubscribeMethod: string,
       responseMethod: string,
       params: unknown[],
-      callback: ProviderInterfaceCallback
-    ): Promise<() => Promise<void>> {
+      callback: ProviderInterfaceCallback,
+      timeout: number | false = 30_000 // 30 seconds in milliseconds
+    ): Promise<(unsubscribeMethod: string) => void> {
       if (chainId !== chain.id) throw new Error(`Chain ${chainId} not supported by stub connector`)
       if (!socket) throw new Error(`Socket for chain ${chainId} unavailable`)
 
       const subscriptionId = await socket.subscribe(responseMethod, subscribeMethod, params, callback)
 
-      const unsubscribe = async () => {
-        socket && (await socket.unsubscribe(responseMethod, unsubscribeMethod, subscriptionId))
+      const unsubscribe = (unsubscribeMethod: string) => {
+        if (!socket) return
+        socket.unsubscribe(responseMethod, unsubscribeMethod, subscriptionId)
       }
       return unsubscribe
     },
   }
+  const chainConnectorEvm = new ChainConnectorEvm({} as any)
   const stubChaindataProvider: ChaindataProvider = {
     chainIds: () => Promise.resolve([chain.id]),
     chains: () => Promise.resolve({ [chain.id]: chain as unknown as ChaindataChain }),
@@ -278,23 +285,29 @@ async function updateChainTokens(ctx: BlockHandlerContext<EntityManager>, socket
 
   chain.balanceMetadata = (
     await Promise.all(
-      balanceModules.map(async (balanceModule) => [
-        balanceModule.type,
-        await balanceModule
-          .fetchSubstrateChainMeta(
-            stubChainConnector as ChainConnector,
-            stubChaindataProvider,
-            chain.id,
-            chain.balanceModuleConfigs.find(({ moduleType }) => moduleType === balanceModule.type)?.moduleConfig as any
-          )
-          .catch((error: any) =>
-            log.error(
-              `Failed to set balanceMetadata for chain ${chain.id} module ${balanceModule.type}: ${
-                error?.message ?? error
-              }`
+      balanceModules
+        .map((mod) =>
+          mod({
+            chainConnectors: { substrate: stubChainConnector as ChainConnector, evm: chainConnectorEvm },
+            chaindataProvider: stubChaindataProvider,
+          })
+        )
+        .map(async (balanceModule) => [
+          balanceModule.type,
+          await balanceModule
+            .fetchSubstrateChainMeta(
+              chain.id,
+              chain.balanceModuleConfigs.find(({ moduleType }) => moduleType === balanceModule.type)
+                ?.moduleConfig as any
             )
-          ),
-      ])
+            .catch((error: any) =>
+              log.error(
+                `Failed to set balanceMetadata for chain ${chain.id} module ${balanceModule.type}: ${
+                  error?.message ?? error
+                }`
+              )
+            ),
+        ])
     )
   )
     .filter(([moduleType, metadata]) => typeof moduleType === 'string' && metadata)
@@ -305,13 +318,17 @@ async function updateChainTokens(ctx: BlockHandlerContext<EntityManager>, socket
   const tokens = (
     await Promise.all(
       balanceModules
+        .map((mod) =>
+          mod({
+            chainConnectors: { substrate: stubChainConnector as ChainConnector, evm: chainConnectorEvm },
+            chaindataProvider: stubChaindataProvider,
+          })
+        )
         .filter((balanceModule) => chain.balanceMetadata.find((meta) => meta.moduleType === balanceModule.type))
         .map(
           async (balanceModule) =>
             await balanceModule
               .fetchSubstrateChainTokens(
-                stubChainConnector as ChainConnector,
-                stubChaindataProvider,
                 chain.id,
                 chain.balanceMetadata.find((meta) => meta.moduleType === balanceModule.type)?.metadata as any,
                 chain.balanceModuleConfigs.find(({ moduleType }) => moduleType === balanceModule.type)

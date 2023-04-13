@@ -1,6 +1,8 @@
+import { ProviderInterface, ProviderInterfaceCallback } from '@polkadot/rpc-provider/types'
 import { BlockHandlerContext } from '@subsquid/substrate-processor'
+import { ChainConnector } from '@talismn/chain-connector'
 import { ChainConnectorEvm } from '@talismn/chain-connector-evm'
-import { EvmNetwork as ChaindataEvmNetwork, ChaindataProvider } from '@talismn/chaindata-provider'
+import { ChainId, EvmNetwork as ChaindataEvmNetwork, ChaindataProvider } from '@talismn/chaindata-provider'
 import axios from 'axios'
 import { EntityManager } from 'typeorm'
 
@@ -148,6 +150,31 @@ export async function updateEvmNetworksFromGithub({ store }: BlockHandlerContext
   }
 
   // used for balanceMetadata + tokens fetching
+  const stubChainConnector = {
+    asProvider(chainId: ChainId): ProviderInterface {
+      throw new Error('asProvider method not supported by stub connection')
+    },
+
+    async send<T = any>(
+      chainId: ChainId,
+      method: string,
+      params: unknown[],
+      isCacheable?: boolean | undefined
+    ): Promise<T> {
+      throw new Error(`Chain ${chainId} not supported by stub connector`)
+    },
+
+    async subscribe(
+      chainId: ChainId,
+      subscribeMethod: string,
+      responseMethod: string,
+      params: unknown[],
+      callback: ProviderInterfaceCallback,
+      timeout: number | false = 30_000 // 30 seconds in milliseconds
+    ): Promise<(unsubscribeMethod: string) => void> {
+      throw new Error(`Chain ${chainId} not supported by stub connector`)
+    },
+  }
   const chainConnectorEvm = new ChainConnectorEvm({} as any)
 
   // get network ids + rpc health statuses
@@ -241,16 +268,21 @@ export async function updateEvmNetworksFromGithub({ store }: BlockHandlerContext
         // fetch balance metadata for evm networks
         evmNetwork.balanceMetadata = (
           await Promise.all(
-            balanceModules.map(async (balanceModule) => [
-              balanceModule.type,
-              await balanceModule.fetchEvmChainMeta(
-                chainConnectorEvm,
-                stubChaindataProvider,
-                evmNetwork.id,
-                evmNetwork.balanceModuleConfigs.find(({ moduleType }) => moduleType === balanceModule.type)
-                  ?.moduleConfig as any
-              ),
-            ])
+            balanceModules
+              .map((mod) =>
+                mod({
+                  chainConnectors: { substrate: stubChainConnector as ChainConnector, evm: chainConnectorEvm },
+                  chaindataProvider: stubChaindataProvider,
+                })
+              )
+              .map(async (balanceModule) => [
+                balanceModule.type,
+                await balanceModule.fetchEvmChainMeta(
+                  evmNetwork.id,
+                  evmNetwork.balanceModuleConfigs.find(({ moduleType }) => moduleType === balanceModule.type)
+                    ?.moduleConfig as any
+                ),
+              ])
           )
         )
           .filter(([moduleType, metadata]) => typeof moduleType === 'string' && metadata)
@@ -292,14 +324,18 @@ export async function updateEvmNetworksFromGithub({ store }: BlockHandlerContext
       const tokens = (
         await Promise.all(
           balanceModules
+            .map((mod) =>
+              mod({
+                chainConnectors: { substrate: stubChainConnector as ChainConnector, evm: chainConnectorEvm },
+                chaindataProvider: stubChaindataProvider,
+              })
+            )
             .filter((balanceModule) =>
               evmNetwork.balanceMetadata.find((meta) => meta.moduleType === balanceModule.type)
             )
             .map(
               async (balanceModule) =>
                 await balanceModule.fetchEvmChainTokens(
-                  chainConnectorEvm,
-                  stubChaindataProvider,
                   evmNetwork.id,
                   evmNetwork.balanceMetadata.find((meta) => meta.moduleType === balanceModule.type)?.metadata as any,
                   evmNetwork.balanceModuleConfigs.find(({ moduleType }) => moduleType === balanceModule.type)
