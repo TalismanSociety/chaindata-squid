@@ -30,6 +30,7 @@ export type GithubToken = {
   themeColor?: string
   decimals?: number
   coingeckoId?: string | null
+  mirrorOf?: string | null
 }
 
 // Some handy types from https://www.typescriptlang.org/docs/handbook/advanced-types.html#distributive-conditional-types
