@@ -38,8 +38,8 @@ type Chain @entity {
   "native token for this chain"
   nativeToken: Token
 
-  "whether this chain uses has custom rules to decide on fee token"
-  isUnknownFeeToken: Boolean
+  "does this chain use custom rules to decide on the fee token for txs?"
+  isUnknownFeeToken: Boolean!
 
   "other tokens on this chain"
   tokens: [Token!]! @derivedFrom(field: "squidImplementationDetailChain")
