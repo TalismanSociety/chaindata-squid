@@ -8,6 +8,7 @@ export type GithubChain = {
   chainspecQrUrl?: string
   latestMetadataQrUrl?: string
   overrideNativeTokenId?: string
+  isUnknownFeeToken?: boolean
   rpcs?: string[]
   paraId?: number
   relay?: { id: string }

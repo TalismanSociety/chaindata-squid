@@ -38,6 +38,9 @@ type Chain @entity {
   "native token for this chain"
   nativeToken: Token
 
+  "whether this chain uses has custom rules to decide on fee token"
+  isUnknownFeeToken: Boolean
+
   "other tokens on this chain"
   tokens: [Token!]! @derivedFrom(field: "squidImplementationDetailChain")
 
