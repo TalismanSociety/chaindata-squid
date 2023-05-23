@@ -31,7 +31,7 @@ export class EvmNetwork {
     sortIndex!: number | undefined | null
 
     /**
-     * talisman-defined name for this network
+     * name for this network (talisman-defined)
      */
     @Column_("text", {nullable: true})
     name!: string | undefined | null
@@ -68,7 +68,7 @@ export class EvmNetwork {
     explorerUrl!: string | undefined | null
 
     /**
-     * talisman-defined ethereum rpcs for this network
+     * ethereum rpcs for this network (talisman-defined)
      */
     @Column_("jsonb", {transformer: {to: obj => obj.map((val: any) => val.toJSON()), from: obj => obj == null ? undefined : marshal.fromList(obj, val => new EthereumRpc(undefined, marshal.nonNull(val)))}, nullable: false})
     rpcs!: (EthereumRpc)[]

@@ -13,7 +13,7 @@ export class Chain {
     }
 
     /**
-     * talisman-defined id for this substrate chain
+     * the id for this chain (talisman-defined)
      */
     @PrimaryColumn_()
     id!: string
@@ -61,7 +61,7 @@ export class Chain {
     logo!: string | undefined | null
 
     /**
-     * chain-specified name of this chain
+     * chain-specified name for this chain
      */
     @Column_("text", {nullable: true})
     chainName!: string | undefined | null
@@ -128,13 +128,13 @@ export class Chain {
     latestMetadataQrUrl!: string | undefined | null
 
     /**
-     * talisman-defined substrate rpcs for this chain
+     * substrate rpcs for this chain (talisman-defined)
      */
     @Column_("jsonb", {transformer: {to: obj => obj.map((val: any) => val.toJSON()), from: obj => obj == null ? undefined : marshal.fromList(obj, val => new SubstrateRpc(undefined, marshal.nonNull(val)))}, nullable: false})
     rpcs!: (SubstrateRpc)[]
 
     /**
-     * health status of this chain
+     * health status for this chain
      */
     @Column_("bool", {nullable: false})
     isHealthy!: boolean
@@ -164,7 +164,7 @@ export class Chain {
     parathreads!: Chain[]
 
     /**
-     * paraId of this chain (if this chain is a parachain for another chain)
+     * paraId for this chain (if this chain is a parachain for another chain)
      */
     @Column_("int4", {nullable: true})
     paraId!: number | undefined | null

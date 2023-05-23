@@ -9,7 +9,7 @@ export class Token {
     }
 
     /**
-     * talisman-defined id for this token
+     * id for this token (talisman-defined)
      */
     @PrimaryColumn_()
     id!: string

@@ -1,5 +1,5 @@
 type Chain @entity {
-  "talisman-defined id for this substrate chain"
+  "the id for this chain (talisman-defined)"
   id: ID!
 
   "is chain this a testnet?"
@@ -23,7 +23,7 @@ type Chain @entity {
   "url of the logo for this chain"
   logo: String
 
-  "chain-specified name of this chain"
+  "chain-specified name for this chain"
   chainName: String
 
   "implementation name for this chain"
@@ -56,10 +56,10 @@ type Chain @entity {
   "latest metadata qr url for this chain"
   latestMetadataQrUrl: String
 
-  "talisman-defined substrate rpcs for this chain"
+  "substrate rpcs for this chain (talisman-defined)"
   rpcs: [SubstrateRpc!]!
 
-  "health status of this chain"
+  "health status for this chain"
   isHealthy: Boolean!
 
   "balance metadata for this chain"
@@ -74,7 +74,7 @@ type Chain @entity {
   "parathreads of this chain (if this chain is a relaychain)"
   parathreads: [Chain!]! @derivedFrom(field: "relay")
 
-  "paraId of this chain (if this chain is a parachain for another chain)"
+  "paraId for this chain (if this chain is a parachain for another chain)"
   paraId: Int
 
   "relaychain of this chain (if this chain is a parachain for another chain)"
@@ -91,7 +91,7 @@ type EvmNetwork @entity {
   "index for sorting chains and evm networks in a user-friendly way"
   sortIndex: Int
 
-  "talisman-defined name for this network"
+  "name for this network (talisman-defined)"
   name: String
 
   "a theme color for this network"
@@ -109,7 +109,7 @@ type EvmNetwork @entity {
   "block explorer url for this network"
   explorerUrl: String
 
-  "talisman-defined ethereum rpcs for this network"
+  "ethereum rpcs for this network (talisman-defined)"
   rpcs: [EthereumRpc!]!
 
   "health status of this network"
@@ -126,7 +126,7 @@ type EvmNetwork @entity {
 }
 
 type Token @entity {
-  "talisman-defined id for this token"
+  "id for this token (talisman-defined)"
   id: ID!
 
   "TODO: Put all token data into here (because we have plugins now)"
