@@ -27,6 +27,7 @@ export async function updateChainsFromGithub({ store }: BlockHandlerContext<Enti
     chain.subscanUrl = githubChain.subscanUrl
     chain.chainspecQrUrl = githubChain.chainspecQrUrl
     chain.latestMetadataQrUrl = githubChain.latestMetadataQrUrl
+    chain.isUnknownFeeToken = githubChain.isUnknownFeeToken || false
     chain.rpcs = (githubChain.rpcs || []).map((url) => new SubstrateRpc({ url, isHealthy: false }))
     if (!chain.balanceMetadata) chain.balanceMetadata = []
 

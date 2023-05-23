@@ -92,6 +92,12 @@ export class Chain {
     nativeToken!: Token | undefined | null
 
     /**
+     * whether this chain uses has custom rules to decide on fee token
+     */
+    @Column_("bool", {nullable: true})
+    isUnknownFeeToken!: boolean | undefined | null
+
+    /**
      * other tokens on this chain
      */
     @OneToMany_(() => Token, e => e.squidImplementationDetailChain)
