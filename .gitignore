@@ -3,6 +3,7 @@ node_modules
 
 # subsquid
 /lib
+/builds
 /**Versions.json
 /**Versions.jsonl
 

@@ -181,6 +181,8 @@ const attemptToUpdateDataForChain = async (
         ['state_getMetadata', []],
         ['system_chain', []],
         ['system_properties', []],
+        // // TODO: Get parachainId from storage
+        // ['state_getStorage', ['0x0d715f2646c8f85767b5d2764bb2782604a74d81251e398fd8a0a4d55023bb3f']],
       ],
       chainRpcTimeout
     )
