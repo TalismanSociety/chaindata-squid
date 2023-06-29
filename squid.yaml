@@ -25,5 +25,8 @@ deploy:
       - '1000'
 scale:
   dedicated: true
+  addons:
+    postgres:
+      profile: medium
   api:
     profile: medium
