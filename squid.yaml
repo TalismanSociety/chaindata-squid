@@ -7,6 +7,9 @@ build:
 deploy:
   addons:
     postgres:
+      config:
+        max_locks_per_transaction: 1000
+        max_pred_locks_per_transaction: 1000
   processor:
     cmd:
       - node
