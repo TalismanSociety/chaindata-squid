@@ -8,6 +8,7 @@ import { addThemeColors } from './steps/addThemeColors'
 import { applyNativeTokenOverrides } from './steps/applyNativeTokenOverrides'
 import { fetchDataForChains } from './steps/fetchDataForChains'
 import { fetchDataFromGithub } from './steps/fetchDataFromGithub'
+import { setInvalidChainLogosToUnknownLogo } from './steps/setInvalidChainLogosToUnknownLogo'
 import { setInvalidTokenLogosToCoingeckoOrChainLogo } from './steps/setInvalidTokenLogosToCoingeckoOrChainLogo'
 import { updateChainsFromGithub } from './steps/updateChainsFromGithub'
 import { updateEvmNetworksFromGithub } from './steps/updateEvmNetworksFromGithub'
@@ -63,6 +64,7 @@ const processorSteps: Array<(context: BlockHandlerContext<EntityManager>) => Pro
   updateSortIndexes,
   updateTokensFromGithub,
   applyNativeTokenOverrides,
+  setInvalidChainLogosToUnknownLogo,
   setInvalidTokenLogosToCoingeckoOrChainLogo,
   addThemeColors,
 ]

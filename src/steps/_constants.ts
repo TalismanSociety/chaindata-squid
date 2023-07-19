@@ -1,4 +1,5 @@
 import { balanceModules as defaultBalanceModules } from '@talismn/balances-default-modules'
+import { githubChainLogoUrl } from '@talismn/chaindata-provider'
 
 export {
   githubChainsUrl,
@@ -10,6 +11,9 @@ export {
   githubTokenLogoUrl,
   githubUnknownTokenLogoUrl,
 } from '@talismn/chaindata-provider'
+
+// TODO: Update @talismn/chaindata-provider and import `githubUnknownChainLogoUrl` from there
+export const githubUnknownChainLogoUrl = githubChainLogoUrl('unknown')
 
 export const balanceModules = defaultBalanceModules
 
