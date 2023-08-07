@@ -31,6 +31,7 @@ export type GithubToken = {
   themeColor?: string
   decimals?: number
   coingeckoId?: string | null
+  dcentName?: string | null
   mirrorOf?: string | null
 }
 
