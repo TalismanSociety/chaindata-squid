@@ -20,6 +20,8 @@ export async function updateTokensFromGithub({ store }: BlockHandlerContext<Enti
     if (typeof githubToken.decimals === 'number') (token.data as any).decimals = githubToken.decimals
     if (typeof githubToken.coingeckoId === 'string' || githubToken.coingeckoId === null)
       (token.data as any).coingeckoId = githubToken.coingeckoId
+    if (typeof githubToken.dcentName === 'string' || githubToken.dcentName === null)
+      (token.data as any).dcentName = githubToken.dcentName
     if (typeof githubToken.mirrorOf === 'string') (token.data as any).mirrorOf = githubToken.mirrorOf
     else delete (token.data as any).mirrorOf
 
