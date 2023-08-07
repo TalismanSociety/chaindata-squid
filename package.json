@@ -13,7 +13,7 @@
     "build": "rm -rf lib && tsc",
     "process": "npx sqd process",
     "serve": "npx sqd serve",
-    "deploy": "npx sqd deploy --org talisman -r https://github.com/TalismanSociety/chaindata-squid#main",
+    "deploy": "npx sqd deploy --org talisman https://github.com/TalismanSociety/chaindata-squid#main",
     "deploy:update": "npx sqd deploy --org talisman --update https://github.com/TalismanSociety/chaindata-squid#main",
     "deploy:reset": "npx sqd deploy --org talisman --hard-reset https://github.com/TalismanSociety/chaindata-squid#main"
   },
