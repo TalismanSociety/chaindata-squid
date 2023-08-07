@@ -1,4 +1,4 @@
-import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, ManyToOne as ManyToOne_, Index as Index_, OneToMany as OneToMany_} from "typeorm"
+import {Entity as Entity_, Column as Column_, PrimaryColumn as PrimaryColumn_, Index as Index_, ManyToOne as ManyToOne_, OneToMany as OneToMany_} from "typeorm"
 import * as marshal from "./marshal"
 import {Token} from "./token.model"
 import {SubstrateRpc} from "./_substrateRpc"
@@ -33,6 +33,7 @@ export class Chain {
     /**
      * hash of the first block on this chain
      */
+    @Index_()
     @Column_("text", {nullable: true})
     genesisHash!: string | undefined | null
 

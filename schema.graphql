@@ -9,7 +9,7 @@ type Chain @entity {
   sortIndex: Int
 
   "hash of the first block on this chain"
-  genesisHash: String
+  genesisHash: String @index
 
   "ss58 prefix for this chain"
   prefix: Int
