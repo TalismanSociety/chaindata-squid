@@ -13,6 +13,9 @@ export async function updateChainsFromGithub({ store }: BlockHandlerContext<Enti
   for (const githubChain of processorSharedData.githubChains) {
     if (typeof githubChain?.id !== 'string') continue
 
+    // don't include chains with no RPCs
+    if (!githubChain.rpcs?.length) continue
+
     // don't delete this chain
     delete deletedChainIdsMap[githubChain.id]
 
